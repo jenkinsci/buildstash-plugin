@@ -11,7 +11,7 @@
     <artifactId>buildstash</artifactId>
     <version>1.0.0</version>
     <packaging>hpi</packaging>
-    <name>Jenkins Buildstash Plugin</name>
+    <name>Buildstash Plugin</name>
     <description>Allows uploading build artifacts to Buildstash, for management and organization of binaries, sharing with your team and collaborators, and deployment.</description>
     <url>https://github.com/jenkinsci/buildstash-plugin</url>
 

@@ -1,5 +1,6 @@
 package com.buildstash;
 
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -56,14 +57,47 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
     @Override
     public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
         try {
-            // Validate required parameters
-            validateParameters();
+            // Get environment variables for expansion
+            EnvVars env = build.getEnvironment(listener);
+            
+            // Expand environment variables in all fields
+            String expandedApiKey = expand(env, apiKey);
+            String expandedStructure = expand(env, structure);
+            String expandedPrimaryFilePath = expand(env, primaryFilePath);
+            String expandedExpansionFilePath = expand(env, expansionFilePath);
+            String expandedVersionComponent1Major = expand(env, versionComponent1Major);
+            String expandedVersionComponent2Minor = expand(env, versionComponent2Minor);
+            String expandedVersionComponent3Patch = expand(env, versionComponent3Patch);
+            String expandedVersionComponentExtra = expand(env, versionComponentExtra);
+            String expandedVersionComponentMeta = expand(env, versionComponentMeta);
+            String expandedCustomBuildNumber = expand(env, customBuildNumber);
+            String expandedLabels = expand(env, labels);
+            String expandedArchitectures = expand(env, architectures);
+            String expandedPlatform = expand(env, platform);
+            String expandedStream = expand(env, stream);
+            String expandedNotes = expand(env, notes);
+            String expandedVcHostType = expand(env, vcHostType);
+            String expandedVcHost = expand(env, vcHost);
+            String expandedVcRepoName = expand(env, vcRepoName);
+            String expandedVcRepoUrl = expand(env, vcRepoUrl);
+            String expandedVcBranch = expand(env, vcBranch);
+            String expandedVcCommitSha = expand(env, vcCommitSha);
+            String expandedVcCommitUrl = expand(env, vcCommitUrl);
+            
+            // Validate required parameters with expanded values
+            validateParameters(expandedApiKey, expandedPrimaryFilePath, expandedVersionComponent1Major,
+                    expandedVersionComponent2Minor, expandedVersionComponent3Patch, expandedPlatform, expandedStream);
 
             // Create upload service
-            BuildstashUploadService uploadService = new BuildstashUploadService(apiKey, listener);
+            BuildstashUploadService uploadService = new BuildstashUploadService(expandedApiKey, listener);
 
-            // Prepare upload request
-            BuildstashUploadRequest request = createUploadRequest(workspace, build);
+            // Prepare upload request with expanded values
+            BuildstashUploadRequest request = createUploadRequest(workspace, build, expandedStructure,
+                    expandedPrimaryFilePath, expandedExpansionFilePath, expandedVersionComponent1Major,
+                    expandedVersionComponent2Minor, expandedVersionComponent3Patch, expandedVersionComponentExtra,
+                    expandedVersionComponentMeta, expandedCustomBuildNumber, expandedLabels, expandedArchitectures,
+                    expandedPlatform, expandedStream, expandedNotes, expandedVcHostType, expandedVcHost,
+                    expandedVcRepoName, expandedVcRepoUrl, expandedVcBranch, expandedVcCommitSha, expandedVcCommitUrl);
 
             // Execute upload
             BuildstashUploadResponse response = uploadService.upload(request);
@@ -85,7 +119,9 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
         }
     }
 
-    private void validateParameters() throws Exception {
+    private void validateParameters(String apiKey, String primaryFilePath, String versionComponent1Major,
+                                    String versionComponent2Minor, String versionComponent3Patch,
+                                    String platform, String stream) throws Exception {
         if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new IllegalArgumentException("API key is required");
         }
@@ -114,11 +150,30 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
             throw new IllegalArgumentException("Stream is required");
         }
     }
+    
+    /**
+     * Expands environment variables in a string value.
+     * Returns null if input is null, otherwise expands variables like ${VAR_NAME}.
+     */
+    private String expand(EnvVars env, String value) {
+        if (value == null) {
+            return null;
+        }
+        return env.expand(value);
+    }
 
-    private BuildstashUploadRequest createUploadRequest(FilePath workspace, Run<?, ?> build) throws IOException, InterruptedException {
+    private BuildstashUploadRequest createUploadRequest(FilePath workspace, Run<?, ?> build,
+                                                         String structure, String primaryFilePath, String expansionFilePath,
+                                                         String versionComponent1Major, String versionComponent2Minor,
+                                                         String versionComponent3Patch, String versionComponentExtra,
+                                                         String versionComponentMeta, String customBuildNumber,
+                                                         String labels, String architectures, String platform,
+                                                         String stream, String notes, String vcHostType, String vcHost,
+                                                         String vcRepoName, String vcRepoUrl, String vcBranch,
+                                                         String vcCommitSha, String vcCommitUrl) throws IOException, InterruptedException {
         BuildstashUploadRequest request = new BuildstashUploadRequest();
 
-        // Set basic properties
+        // Set basic properties (already expanded)
         request.setStructure(structure);
         request.setPrimaryFilePath(primaryFilePath);
         request.setExpansionFilePath(expansionFilePath);
@@ -157,7 +212,7 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
         request.setCiBuildDuration(formatBuildDuration(getBuildDuration(build)));
         request.setSource("jenkins");
 
-        // Set version control information (manual values first)
+        // Set version control information (manual values first, already expanded)
         request.setVcHostType(vcHostType);
         request.setVcHost(vcHost);
         request.setVcRepoName(vcRepoName);

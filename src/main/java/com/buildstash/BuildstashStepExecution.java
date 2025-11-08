@@ -1,5 +1,6 @@
 package com.buildstash;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.model.Run;
 import hudson.model.TaskListener;
@@ -33,6 +34,7 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         TaskListener listener = getContext().get(TaskListener.class);
         FilePath workspace = getContext().get(FilePath.class);
         Run<?, ?> run = getContext().get(Run.class);
+        EnvVars env = getContext().get(EnvVars.class);
 
         if (listener == null) {
             throw new IllegalStateException("TaskListener not available");
@@ -42,14 +44,54 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
             throw new IllegalStateException("Workspace not available");
         }
 
-        // Validate required parameters
-        validateParameters();
+        // Get environment variables for expansion (may be null in some contexts)
+        if (env == null) {
+            try {
+                env = run.getEnvironment(listener);
+            } catch (Exception e) {
+                // If we can't get environment, create empty one
+                env = new EnvVars();
+            }
+        }
+        
+        // Expand environment variables in all fields
+        String expandedApiKey = expand(env, step.getApiKey());
+        String expandedStructure = expand(env, step.getStructure());
+        String expandedPrimaryFilePath = expand(env, step.getPrimaryFilePath());
+        String expandedExpansionFilePath = expand(env, step.getExpansionFilePath());
+        String expandedVersionComponent1Major = expand(env, step.getVersionComponent1Major());
+        String expandedVersionComponent2Minor = expand(env, step.getVersionComponent2Minor());
+        String expandedVersionComponent3Patch = expand(env, step.getVersionComponent3Patch());
+        String expandedVersionComponentExtra = expand(env, step.getVersionComponentExtra());
+        String expandedVersionComponentMeta = expand(env, step.getVersionComponentMeta());
+        String expandedCustomBuildNumber = expand(env, step.getCustomBuildNumber());
+        String expandedLabels = expand(env, step.getLabels());
+        String expandedArchitectures = expand(env, step.getArchitectures());
+        String expandedPlatform = expand(env, step.getPlatform());
+        String expandedStream = expand(env, step.getStream());
+        String expandedNotes = expand(env, step.getNotes());
+        String expandedVcHostType = expand(env, step.getVcHostType());
+        String expandedVcHost = expand(env, step.getVcHost());
+        String expandedVcRepoName = expand(env, step.getVcRepoName());
+        String expandedVcRepoUrl = expand(env, step.getVcRepoUrl());
+        String expandedVcBranch = expand(env, step.getVcBranch());
+        String expandedVcCommitSha = expand(env, step.getVcCommitSha());
+        String expandedVcCommitUrl = expand(env, step.getVcCommitUrl());
+
+        // Validate required parameters with expanded values
+        validateParameters(expandedApiKey, expandedPrimaryFilePath, expandedVersionComponent1Major,
+                expandedVersionComponent2Minor, expandedVersionComponent3Patch, expandedPlatform, expandedStream);
 
         // Create upload service
-        BuildstashUploadService uploadService = new BuildstashUploadService(step.getApiKey(), listener);
+        BuildstashUploadService uploadService = new BuildstashUploadService(expandedApiKey, listener);
 
-        // Prepare upload request
-        BuildstashUploadRequest request = createUploadRequest(workspace, run);
+        // Prepare upload request with expanded values
+        BuildstashUploadRequest request = createUploadRequest(workspace, run, expandedStructure,
+                expandedPrimaryFilePath, expandedExpansionFilePath, expandedVersionComponent1Major,
+                expandedVersionComponent2Minor, expandedVersionComponent3Patch, expandedVersionComponentExtra,
+                expandedVersionComponentMeta, expandedCustomBuildNumber, expandedLabels, expandedArchitectures,
+                expandedPlatform, expandedStream, expandedNotes, expandedVcHostType, expandedVcHost,
+                expandedVcRepoName, expandedVcRepoUrl, expandedVcBranch, expandedVcCommitSha, expandedVcCommitUrl);
 
         // Execute upload
         BuildstashUploadResponse response = uploadService.upload(request);
@@ -64,68 +106,89 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         return null;
     }
 
-    private void validateParameters() throws Exception {
-        if (step.getApiKey() == null || step.getApiKey().trim().isEmpty()) {
+    private void validateParameters(String apiKey, String primaryFilePath, String versionComponent1Major,
+                                    String versionComponent2Minor, String versionComponent3Patch,
+                                    String platform, String stream) throws Exception {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new IllegalArgumentException("API key is required");
         }
 
-        if (step.getPrimaryFilePath() == null || step.getPrimaryFilePath().trim().isEmpty()) {
+        if (primaryFilePath == null || primaryFilePath.trim().isEmpty()) {
             throw new IllegalArgumentException("Primary file path is required");
         }
 
-        if (step.getVersionComponent1Major() == null || step.getVersionComponent1Major().trim().isEmpty()) {
+        if (versionComponent1Major == null || versionComponent1Major.trim().isEmpty()) {
             throw new IllegalArgumentException("Major version component is required");
         }
 
-        if (step.getVersionComponent2Minor() == null || step.getVersionComponent2Minor().trim().isEmpty()) {
+        if (versionComponent2Minor == null || versionComponent2Minor.trim().isEmpty()) {
             throw new IllegalArgumentException("Minor version component is required");
         }
 
-        if (step.getVersionComponent3Patch() == null || step.getVersionComponent3Patch().trim().isEmpty()) {
+        if (versionComponent3Patch == null || versionComponent3Patch.trim().isEmpty()) {
             throw new IllegalArgumentException("Patch version component is required");
         }
 
-        if (step.getPlatform() == null || step.getPlatform().trim().isEmpty()) {
+        if (platform == null || platform.trim().isEmpty()) {
             throw new IllegalArgumentException("Platform is required");
         }
 
-        if (step.getStream() == null || step.getStream().trim().isEmpty()) {
+        if (stream == null || stream.trim().isEmpty()) {
             throw new IllegalArgumentException("Stream is required");
         }
     }
+    
+    /**
+     * Expands environment variables in a string value.
+     * Returns null if input is null, otherwise expands variables like ${VAR_NAME}.
+     */
+    private String expand(EnvVars env, String value) {
+        if (value == null || env == null) {
+            return value;
+        }
+        return env.expand(value);
+    }
 
-    private BuildstashUploadRequest createUploadRequest(FilePath workspace, Run<?, ?> run) throws IOException, InterruptedException {
+    private BuildstashUploadRequest createUploadRequest(FilePath workspace, Run<?, ?> run,
+                                                         String structure, String primaryFilePath, String expansionFilePath,
+                                                         String versionComponent1Major, String versionComponent2Minor,
+                                                         String versionComponent3Patch, String versionComponentExtra,
+                                                         String versionComponentMeta, String customBuildNumber,
+                                                         String labels, String architectures, String platform,
+                                                         String stream, String notes, String vcHostType, String vcHost,
+                                                         String vcRepoName, String vcRepoUrl, String vcBranch,
+                                                         String vcCommitSha, String vcCommitUrl) throws IOException, InterruptedException {
         BuildstashUploadRequest request = new BuildstashUploadRequest();
 
-        // Set basic properties
-        request.setStructure(step.getStructure());
-        request.setPrimaryFilePath(step.getPrimaryFilePath());
-        request.setExpansionFilePath(step.getExpansionFilePath());
-        request.setVersionComponent1Major(step.getVersionComponent1Major());
-        request.setVersionComponent2Minor(step.getVersionComponent2Minor());
-        request.setVersionComponent3Patch(step.getVersionComponent3Patch());
-        request.setVersionComponentExtra(step.getVersionComponentExtra());
-        request.setVersionComponentMeta(step.getVersionComponentMeta());
-        request.setCustomBuildNumber(step.getCustomBuildNumber());
-        request.setPlatform(step.getPlatform());
-        request.setStream(step.getStream());
-        request.setNotes(step.getNotes());
+        // Set basic properties (already expanded)
+        request.setStructure(structure);
+        request.setPrimaryFilePath(primaryFilePath);
+        request.setExpansionFilePath(expansionFilePath);
+        request.setVersionComponent1Major(versionComponent1Major);
+        request.setVersionComponent2Minor(versionComponent2Minor);
+        request.setVersionComponent3Patch(versionComponent3Patch);
+        request.setVersionComponentExtra(versionComponentExtra);
+        request.setVersionComponentMeta(versionComponentMeta);
+        request.setCustomBuildNumber(customBuildNumber);
+        request.setPlatform(platform);
+        request.setStream(stream);
+        request.setNotes(notes);
 
         // Parse labels and architectures (comma-separated or newline-separated)
-        if (step.getLabels() != null && !step.getLabels().trim().isEmpty()) {
-            List<String> labels = Arrays.stream(step.getLabels().split("[,\\r\\n]+"))
+        if (labels != null && !labels.trim().isEmpty()) {
+            List<String> labelsList = Arrays.stream(labels.split("[,\\r\\n]+"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.toList());
-            request.setLabels(labels);
+            request.setLabels(labelsList);
         }
 
-        if (step.getArchitectures() != null && !step.getArchitectures().trim().isEmpty()) {
-            List<String> architectures = Arrays.stream(step.getArchitectures().split("[,\\r\\n]+"))
+        if (architectures != null && !architectures.trim().isEmpty()) {
+            List<String> architecturesList = Arrays.stream(architectures.split("[,\\r\\n]+"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .collect(Collectors.toList());
-            request.setArchitectures(architectures);
+            request.setArchitectures(architecturesList);
         }
 
         // Set CI information automatically from Jenkins context
@@ -136,14 +199,14 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         request.setCiBuildDuration(formatBuildDuration(getBuildDuration(run)));
         request.setSource("jenkins");
 
-        // Set version control information (manual values first)
-        request.setVcHostType(step.getVcHostType());
-        request.setVcHost(step.getVcHost());
-        request.setVcRepoName(step.getVcRepoName());
-        request.setVcRepoUrl(step.getVcRepoUrl());
-        request.setVcBranch(step.getVcBranch());
-        request.setVcCommitSha(step.getVcCommitSha());
-        request.setVcCommitUrl(step.getVcCommitUrl());
+        // Set version control information (manual values first, already expanded)
+        request.setVcHostType(vcHostType);
+        request.setVcHost(vcHost);
+        request.setVcRepoName(vcRepoName);
+        request.setVcRepoUrl(vcRepoUrl);
+        request.setVcBranch(vcBranch);
+        request.setVcCommitSha(vcCommitSha);
+        request.setVcCommitUrl(vcCommitUrl);
 
         // Auto-detect and populate any missing VC fields from Jenkins
         VersionControlDetector.populateVersionControlInfo(run, request);

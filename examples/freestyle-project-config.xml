@@ -46,11 +46,8 @@ touch build/app.ipa</command>
       <versionComponentExtra>beta</versionComponentExtra>
       <versionComponentMeta>build.${BUILD_NUMBER}</versionComponentMeta>
       <customBuildNumber>${BUILD_NUMBER}</customBuildNumber>
-      <labels>jenkins
-automated
-beta</labels>
-      <architectures>arm64
-x86_64</architectures>
+      <labels>jenkins,automated,to-review</labels>
+      <architectures>arm64v8,armv9</architectures>
       <ciPipeline>Jenkins Freestyle</ciPipeline>
       <ciRunId>${BUILD_NUMBER}</ciRunId>
       <ciRunUrl>${BUILD_URL}</ciRunUrl>

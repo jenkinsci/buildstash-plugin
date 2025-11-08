@@ -47,6 +47,40 @@ A Jenkins plugin for uploading build artifacts to the [Buildstash](https://build
 
 ## Usage
 
+### Dynamic Values with Environment Variables
+
+All fields support dynamic values using environment variables. This allows you to set values from previous build steps or use Jenkins environment variables.
+
+**For Freestyle Projects:**
+- Use `${VAR_NAME}` syntax in form fields to reference environment variables
+- Set environment variables in earlier build steps (e.g., shell scripts)
+- Example: Set `platform` field to `${PLATFORM}` where `PLATFORM` is set in a previous step
+
+**For Pipeline Projects:**
+- Use Groovy variables directly: `platform: env.PLATFORM`
+- Or use string expansion: `platform: '${PLATFORM}'`
+- Example: `platform: "${env.BUILD_TYPE}"` or `platform: env.BUILD_TYPE`
+
+All fields support this feature, including:
+- File paths: `primaryFilePath: '${WORKSPACE}/build/app.ipa'`
+- Version components: `versionComponent1Major: '${MAJOR_VERSION}'`
+- Platform, Stream, Labels, Architectures
+- SCM fields, Notes, Custom Build Number
+
+### Setting Up Credentials
+
+Before using the plugin, you need to store your Buildstash API key as a Jenkins credential:
+
+1. Go to **Manage Jenkins** → **Manage Credentials**
+2. Select the domain (usually "Global")
+3. Click **Add Credentials**
+4. Choose **Secret text** as the kind
+5. Enter:
+   - **Secret**: Your Buildstash API key
+   - **ID**: `buildstash-api-key` (or any ID you prefer)
+   - **Description**: "Buildstash API Key"
+6. Click **OK**
+
 ### Pipeline Step
 
 The plugin provides a `buildstash` step that can be used in Jenkins pipelines:
@@ -54,6 +88,13 @@ The plugin provides a `buildstash` step that can be used in Jenkins pipelines:
 ```groovy
 pipeline {
     agent any
+    
+    environment {
+        // Other environment variables
+        PLATFORM = 'ios'
+        STREAM = 'development'
+        BUILD_VERSION = '1.0.0'
+    }
     
     stages {
         stage('Build') {
@@ -65,18 +106,22 @@ pipeline {
         
         stage('Upload to Buildstash') {
             steps {
-                buildstash(
-                    apiKey: 'your-api-key',
-                    structure: 'file',
-                    primaryFilePath: 'build/app.ipa',
-                    versionComponent1Major: '1',
-                    versionComponent2Minor: '0',
-                    versionComponent3Patch: '0',
-                    platform: 'ios',
-                    stream: 'development',
-                    labels: 'beta\ntest',
-                    architectures: 'arm64\nx86_64'
-                )
+                // Use withCredentials to safely load API key
+                // 'buildstash-api-key' is the ID of the credential you created
+                withCredentials([string(credentialsId: 'buildstash-api-key', variable: 'BUILDSTASH_API_KEY')]) {
+                    buildstash(
+                        apiKey: env.BUILDSTASH_API_KEY,  // Using credential (automatically masked in logs)
+                        structure: 'file',
+                        primaryFilePath: 'build/app.ipa',
+                        versionComponent1Major: '1',
+                        versionComponent2Minor: '0',
+                        versionComponent3Patch: '0',
+                        platform: env.PLATFORM,  // Using environment variable
+                        stream: env.STREAM,        // Using environment variable
+                        labels: 'beta\ntest',
+                        architectures: 'arm64\nx86_64'
+                    )
+                }
             }
         }
     }
@@ -89,14 +134,31 @@ The plugin also provides a build step for classic Jenkins Freestyle projects:
 
 1. **Create a Freestyle Project**: Go to Jenkins and create a new Freestyle project
 2. **Add Build Steps**: Configure your build steps (compile, test, etc.)
-3. **Add Buildstash Step**: Add a new build step and select "Upload to Buildstash"
-4. **Configure Parameters**: Fill in the required parameters:
+3. **Set Environment Variables** (optional): In a shell script step, set variables:
+   ```bash
+   export PLATFORM=ios
+   export STREAM=development
+   export BUILD_PATH=build/app.ipa
+   ```
+4. **Add Buildstash Step**: Add a new build step and select "Upload to Buildstash"
+5. **Configure Parameters**: Fill in the required parameters:
    - API Key
-   - Primary File Path
+   - Primary File Path (can use `${BUILD_PATH}` to reference environment variable)
    - Version components (Major, Minor, Patch)
-   - Platform
-   - Stream
-5. **Save and Run**: Save the project configuration and run the build
+   - Platform (can use `${PLATFORM}` to reference environment variable)
+   - Stream (can use `${STREAM}` to reference environment variable)
+6. **Save and Run**: Save the project configuration and run the build
+
+**Using Environment Variables in Freestyle:**
+- Use `${VAR_NAME}` syntax in any form field
+- Variables are expanded at runtime from the build environment
+- Example: Set Platform field to `${PLATFORM}` where `PLATFORM` was set in a previous build step
+
+**Using Credentials in Freestyle:**
+1. Install the **Credentials Binding Plugin** if not already installed
+2. Add build step: **Inject environment variables to the build process**
+3. In "Credentials" section, bind your credential (e.g., `buildstash-api-key`) to an environment variable (e.g., `BUILDSTASH_API_KEY`)
+4. In the Buildstash step, set API Key field to: `${BUILDSTASH_API_KEY}`
 
 The build step will appear in the "Build" section of your Freestyle project configuration, and you can configure all the same parameters as the pipeline step.
 
@@ -111,58 +173,101 @@ After a successful upload, the build results will be displayed on the build page
 For platforms that require both a primary file and an expansion file:
 
 ```groovy
-buildstash(
-    apiKey: 'your-api-key',
-    structure: 'file+expansion',
-    primaryFilePath: 'build/app.aab',
-    expansionFilePath: 'build/app-obb.zip',
-    versionComponent1Major: '1',
-    versionComponent2Minor: '0',
-    versionComponent3Patch: '0',
-    platform: 'android',
-    stream: 'production'
-)
+pipeline {
+    agent any
+    
+    stages {
+        stage('Upload to Buildstash') {
+            steps {
+                withCredentials([string(credentialsId: 'buildstash-api-key', variable: 'BUILDSTASH_API_KEY')]) {
+                    buildstash(
+                        apiKey: env.BUILDSTASH_API_KEY,
+                        structure: 'file+expansion',
+                        primaryFilePath: 'build/app.aab',
+                        expansionFilePath: 'build/app-obb.zip',
+                        versionComponent1Major: '1',
+                        versionComponent2Minor: '0',
+                        versionComponent3Patch: '0',
+                        platform: 'android',
+                        stream: 'production'
+                    )
+                }
+            }
+        }
+    }
+}
 ```
 
 ### Advanced Configuration
 
+Complete example with all available parameters:
+
 ```groovy
-buildstash(
-    apiKey: 'your-api-key',
-    structure: 'file',
-    primaryFilePath: 'build/app.ipa',
-    versionComponent1Major: '1',
-    versionComponent2Minor: '0',
-    versionComponent3Patch: '0',
-    versionComponentExtra: 'beta',
-    versionComponentMeta: 'build.123',
-    customBuildNumber: '2023.12.01',
-    labels: 'beta\ntest\ninternal',
-    architectures: 'arm64',
-    ciPipeline: 'Jenkins Pipeline',
-    ciRunId: env.BUILD_NUMBER,
-    ciRunUrl: env.BUILD_URL,
-    ciBuildDuration: currentBuild.duration.toString(),
-    vcHostType: 'git',
-    vcHost: 'github',
-    vcRepoName: 'my-app',
-    vcRepoUrl: 'https://github.com/user/my-app',
-    vcBranch: env.GIT_BRANCH,
-    vcCommitSha: env.GIT_COMMIT,
-    vcCommitUrl: "https://github.com/user/my-app/commit/${env.GIT_COMMIT}",
-    platform: 'ios',
-    stream: 'development',
-    notes: 'Built with Jenkins on macOS'
-)
+pipeline {
+    agent any
+    
+    environment {
+        PLATFORM = 'ios'
+        STREAM = 'production'
+    }
+    
+    stages {
+        stage('Upload to Buildstash') {
+            steps {
+                withCredentials([string(credentialsId: 'buildstash-api-key', variable: 'BUILDSTASH_API_KEY')]) {
+                    buildstash(
+                        // Required parameters
+                        apiKey: env.BUILDSTASH_API_KEY,
+                        primaryFilePath: "${env.WORKSPACE}/build/app.ipa",
+                        versionComponent1Major: '2',
+                        versionComponent2Minor: '5',
+                        versionComponent3Patch: '1',
+                        platform: env.PLATFORM,
+                        stream: env.STREAM,
+                        
+                        // Optional structure and expansion
+                        structure: 'file+expansion',
+                        expansionFilePath: "${env.WORKSPACE}/build/app.obb",
+                        
+                        // Optional version components
+                        versionComponentExtra: 'beta',
+                        versionComponentMeta: '2024.12.15',
+                        customBuildNumber: "${env.BUILD_NUMBER}-release",
+                        
+                        // Optional labels and architectures
+                        labels: 'production,release,signed',
+                        architectures: 'arm64v8,armv9',
+                        
+                        // Optional SCM fields (auto-detected if not provided)
+                        vcHostType: 'git',
+                        vcHost: 'github',
+                        vcRepoName: 'my-awesome-app',
+                        vcRepoUrl: 'https://github.com/user/my-awesome-app',
+                        vcBranch: env.GIT_BRANCH ?: 'main',
+                        vcCommitSha: env.GIT_COMMIT ?: 'abc123def456',
+                        vcCommitUrl: "https://github.com/user/my-awesome-app/commit/${env.GIT_COMMIT ?: 'abc123def456'}",
+                        
+                        // Optional notes
+                        notes: "Built on ${env.NODE_NAME}"
+                    )
+                }
+            }
+        }
+    }
+}
 ```
 
+**Note:** CI fields (`ciPipeline`, `ciRunId`, `ciRunUrl`, `ciPipelineUrl`, `ciBuildDuration`) are automatically populated from Jenkins context, so you don't need to pass them explicitly.
+
 ## Parameters
+
+> **Note:** All parameters support dynamic values using environment variables. In Freestyle projects, use `${VAR_NAME}` syntax. In Pipeline scripts, use Groovy variables like `env.VAR_NAME` or string expansion `'${VAR_NAME}'`.
 
 ### Required Parameters
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `apiKey` | Your Buildstash API key | `'your-api-key'` |
+| `apiKey` | Your Buildstash API key (use Jenkins Credentials with `withCredentials`) | `env.BUILDSTASH_API_KEY` (when using `withCredentials`) |
 | `primaryFilePath` | Path to the primary file to upload | `'build/app.ipa'` |
 | `versionComponent1Major` | Major version component | `'1'` |
 | `versionComponent2Minor` | Minor version component | `'0'` |
@@ -172,27 +277,27 @@ buildstash(
 
 ### Optional Parameters
 
-| Parameter | Description | Default | Example |
-|-----------|-------------|---------|---------|
-| `structure` | Upload structure type | `'file'` | `'file'`, `'file+expansion'` |
-| `expansionFilePath` | Path to expansion file | `null` | `'build/app-obb.zip'` |
-| `versionComponentExtra` | Extra version component | `null` | `'beta'` |
-| `versionComponentMeta` | Meta version component | `null` | `'build.123'` |
-| `customBuildNumber` | Custom build number | `null` | `'2023.12.01'` |
-| `labels` | Labels (newline-separated) | `null` | `'beta\ntest'` |
-| `architectures` | Architectures (newline-separated) | `null` | `'arm64\nx86_64'` |
-| `ciPipeline` | CI pipeline name | `null` | `'Jenkins Pipeline'` |
-| `ciRunId` | CI run ID | `null` | `env.BUILD_NUMBER` |
-| `ciRunUrl` | CI run URL | `null` | `env.BUILD_URL` |
-| `ciBuildDuration` | CI build duration | `null` | `currentBuild.duration.toString()` |
-| `vcHostType` | Version control host type | `'git'` | `'git'` |
-| `vcHost` | Version control host | `'github'` | `'github'`, `'gitlab'` |
-| `vcRepoName` | Repository name | `null` | `'my-app'` |
-| `vcRepoUrl` | Repository URL | `null` | `'https://github.com/user/my-app'` |
-| `vcBranch` | Branch name | `null` | `env.GIT_BRANCH` |
-| `vcCommitSha` | Commit SHA | `null` | `env.GIT_COMMIT` |
-| `vcCommitUrl` | Commit URL | `null` | `'https://github.com/user/my-app/commit/abc123'` |
-| `notes` | Build notes | `null` | `'Built with Jenkins'` |
+| Parameter | Description                     | Default | Example                                          |
+|-----------|---------------------------------|---------|--------------------------------------------------|
+| `structure` | Upload structure type           | `'file'` | `'file'`, `'file+expansion'`                     |
+| `expansionFilePath` | Path to expansion file          | `null` | `'build/app-obb.zip'`                            |
+| `versionComponentExtra` | Extra version component         | `null` | `'beta'`                                         |
+| `versionComponentMeta` | Meta version component          | `null` | `'build.123'`                                    |
+| `customBuildNumber` | Custom build number             | `null` | `'2023.12.01'`                                   |
+| `labels` | Labels (comma-separated)        | `null` | `'jenkins,to-review'`                            |
+| `architectures` | Architectures (comma-separated) | `null` | `'arm64v8,armv9'`                                |
+| `ciPipeline` | CI pipeline name                | `null` | `'Jenkins Pipeline'`                             |
+| `ciRunId` | CI run ID                       | `null` | `env.BUILD_NUMBER`                               |
+| `ciRunUrl` | CI run URL                      | `null` | `env.BUILD_URL`                                  |
+| `ciBuildDuration` | CI build duration               | `null` | `currentBuild.duration.toString()`               |
+| `vcHostType` | Version control host type       | `'git'` | `'git'`                                          |
+| `vcHost` | Version control host            | `'github'` | `'github'`, `'gitlab'`                           |
+| `vcRepoName` | Repository name                 | `null` | `'my-app'`                                       |
+| `vcRepoUrl` | Repository URL                  | `null` | `'https://github.com/user/my-app'`               |
+| `vcBranch` | Branch name                     | `null` | `env.GIT_BRANCH`                                 |
+| `vcCommitSha` | Commit SHA                      | `null` | `env.GIT_COMMIT`                                 |
+| `vcCommitUrl` | Commit URL                      | `null` | `'https://github.com/user/my-app/commit/abc123'` |
+| `notes` | Build notes                     | `null` | `'Built with Jenkins'`                           |
 
 ## Outputs
 
