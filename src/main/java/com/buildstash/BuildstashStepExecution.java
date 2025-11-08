@@ -3,8 +3,8 @@ package com.buildstash;
 import hudson.FilePath;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
 
 import java.io.IOException;
@@ -121,11 +121,11 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
             request.setArchitectures(architectures);
         }
 
-        // Set CI information
-        request.setCiPipeline(step.getCiPipeline());
-        request.setCiRunId(step.getCiRunId());
-        request.setCiRunUrl(step.getCiRunUrl());
-        request.setCiBuildDuration(step.getCiBuildDuration());
+        // Set CI information automatically from Jenkins context
+        request.setCiPipeline(run.getParent().getDisplayName());
+        request.setCiRunId(String.valueOf(run.getNumber()));
+        request.setCiRunUrl(getBuildUrl(run));
+        request.setCiBuildDuration(formatBuildDuration(run.getDuration()));
         request.setSource("jenkins");
 
         // Set version control information
@@ -141,5 +141,38 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         request.setWorkspace(workspace);
 
         return request;
+    }
+
+    /**
+     * Gets the full URL to the build run status summary.
+     */
+    private String getBuildUrl(Run<?, ?> build) {
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
+        if (jenkins != null) {
+            String rootUrl = jenkins.getRootUrl();
+            if (rootUrl != null && !rootUrl.isEmpty()) {
+                // Remove trailing slash from root URL if present
+                String baseUrl = rootUrl.endsWith("/") ? rootUrl.substring(0, rootUrl.length() - 1) : rootUrl;
+                String buildPath = build.getUrl();
+                // Ensure build path starts with / if it doesn't already
+                if (!buildPath.startsWith("/")) {
+                    buildPath = "/" + buildPath;
+                }
+                return baseUrl + buildPath;
+            }
+        }
+        // Fallback to relative URL if root URL is not available
+        return build.getUrl();
+    }
+
+    /**
+     * Formats build duration in milliseconds to HH:mm:ss format.
+     */
+    private String formatBuildDuration(long durationMs) {
+        long totalSeconds = durationMs / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 } 

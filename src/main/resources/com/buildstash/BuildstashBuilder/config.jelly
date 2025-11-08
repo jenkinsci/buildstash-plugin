@@ -49,22 +49,6 @@
         <f:textarea />
     </f:entry>
     
-    <f:entry title="CI Pipeline" field="ciPipeline">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="CI Run ID" field="ciRunId">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="CI Run URL" field="ciRunUrl">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="CI Build Duration" field="ciBuildDuration">
-        <f:textbox />
-    </f:entry>
-    
     <f:entry title="VC Host Type" field="vcHostType">
         <f:textbox default="git" />
     </f:entry>

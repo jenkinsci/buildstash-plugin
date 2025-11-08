@@ -45,7 +45,10 @@ public class BuildstashUploadService {
         this.apiKey = apiKey;
         this.listener = listener;
         this.objectMapper = new ObjectMapper();
-        this.httpClient = HttpClient.newHttpClient();
+        // Configure HttpClient to follow redirects automatically
+        this.httpClient = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
     }
 
     public BuildstashUploadResponse upload(BuildstashUploadRequest request) throws Exception {
@@ -115,10 +118,28 @@ public class BuildstashUploadService {
         HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
         
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Failed to request upload URLs: " + response.statusCode() + " - " + response.body());
+            String responseBody = response.body();
+            
+            // Log error response for user visibility
+            listener.error("Server returned error: " + response.statusCode());
+            listener.error("Error response: " + responseBody);
+            
+            throw new RuntimeException("Failed to request upload URLs: " + response.statusCode() + " - " + responseBody);
         }
 
-        return objectMapper.readValue(response.body(), UploadRequestResponse.class);
+        String contentType = response.headers().firstValue("content-type").orElse("unknown");
+        String responseBody = response.body();
+        
+        // Check if response is actually JSON
+        if (!contentType.contains("application/json") && !contentType.contains("json")) {
+            throw new RuntimeException("Server returned HTML instead of JSON. This usually indicates an authentication error or the API endpoint is incorrect. Response content-type: " + contentType);
+        }
+
+        try {
+            return objectMapper.readValue(responseBody, UploadRequestResponse.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse JSON response: " + e.getMessage(), e);
+        }
     }
 
     private List<MultipartChunk> uploadChunkedFile(FilePath filePath, String pendingUploadId, FileUploadInfo fileInfo, boolean isExpansion) throws Exception {

@@ -8,6 +8,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Publisher;
+import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -35,10 +36,6 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
     private String customBuildNumber;
     private String labels;
     private String architectures;
-    private String ciPipeline;
-    private String ciRunId;
-    private String ciRunUrl;
-    private String ciBuildDuration;
     private String vcHostType = "git";
     private String vcHost = "github";
     private String vcRepoName;
@@ -145,11 +142,11 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
             request.setArchitectures(architecturesList);
         }
 
-        // Set CI information
-        request.setCiPipeline(ciPipeline != null ? ciPipeline : "Jenkins Freestyle");
-        request.setCiRunId(ciRunId != null ? ciRunId : String.valueOf(build.getNumber()));
-        request.setCiRunUrl(ciRunUrl != null ? ciRunUrl : build.getUrl());
-        request.setCiBuildDuration(ciBuildDuration != null ? ciBuildDuration : String.valueOf(build.getDuration()));
+        // Set CI information automatically from Jenkins context
+        request.setCiPipeline(build.getParent().getDisplayName());
+        request.setCiRunId(String.valueOf(build.getNumber()));
+        request.setCiRunUrl(getBuildUrl(build));
+        request.setCiBuildDuration(formatBuildDuration(build.getDuration()));
         request.setSource("jenkins");
 
         // Set version control information
@@ -165,6 +162,39 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
         request.setWorkspace(workspace);
 
         return request;
+    }
+
+    /**
+     * Gets the full URL to the build run status summary.
+     */
+    private String getBuildUrl(Run<?, ?> build) {
+        Jenkins jenkins = Jenkins.getInstanceOrNull();
+        if (jenkins != null) {
+            String rootUrl = jenkins.getRootUrl();
+            if (rootUrl != null && !rootUrl.isEmpty()) {
+                // Remove trailing slash from root URL if present
+                String baseUrl = rootUrl.endsWith("/") ? rootUrl.substring(0, rootUrl.length() - 1) : rootUrl;
+                String buildPath = build.getUrl();
+                // Ensure build path starts with / if it doesn't already
+                if (!buildPath.startsWith("/")) {
+                    buildPath = "/" + buildPath;
+                }
+                return baseUrl + buildPath;
+            }
+        }
+        // Fallback to relative URL if root URL is not available
+        return build.getUrl();
+    }
+
+    /**
+     * Formats build duration in milliseconds to HH:mm:ss format.
+     */
+    private String formatBuildDuration(long durationMs) {
+        long totalSeconds = durationMs / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
     // Getters and Setters
@@ -227,26 +257,6 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
     
     @DataBoundSetter
     public void setArchitectures(String architectures) { this.architectures = architectures; }
-
-    public String getCiPipeline() { return ciPipeline; }
-    
-    @DataBoundSetter
-    public void setCiPipeline(String ciPipeline) { this.ciPipeline = ciPipeline; }
-
-    public String getCiRunId() { return ciRunId; }
-    
-    @DataBoundSetter
-    public void setCiRunId(String ciRunId) { this.ciRunId = ciRunId; }
-
-    public String getCiRunUrl() { return ciRunUrl; }
-    
-    @DataBoundSetter
-    public void setCiRunUrl(String ciRunUrl) { this.ciRunUrl = ciRunUrl; }
-
-    public String getCiBuildDuration() { return ciBuildDuration; }
-    
-    @DataBoundSetter
-    public void setCiBuildDuration(String ciBuildDuration) { this.ciBuildDuration = ciBuildDuration; }
 
     public String getVcHostType() { return vcHostType; }
     

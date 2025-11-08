@@ -34,10 +34,6 @@ public class BuildstashStep extends Step implements Serializable {
     private String customBuildNumber;
     private String labels;
     private String architectures;
-    private String ciPipeline;
-    private String ciRunId;
-    private String ciRunUrl;
-    private String ciBuildDuration;
     private String vcHostType = "git";
     private String vcHost = "github";
     private String vcRepoName;
@@ -119,26 +115,6 @@ public class BuildstashStep extends Step implements Serializable {
     
     @DataBoundSetter
     public void setArchitectures(String architectures) { this.architectures = architectures; }
-
-    public String getCiPipeline() { return ciPipeline; }
-    
-    @DataBoundSetter
-    public void setCiPipeline(String ciPipeline) { this.ciPipeline = ciPipeline; }
-
-    public String getCiRunId() { return ciRunId; }
-    
-    @DataBoundSetter
-    public void setCiRunId(String ciRunId) { this.ciRunId = ciRunId; }
-
-    public String getCiRunUrl() { return ciRunUrl; }
-    
-    @DataBoundSetter
-    public void setCiRunUrl(String ciRunUrl) { this.ciRunUrl = ciRunUrl; }
-
-    public String getCiBuildDuration() { return ciBuildDuration; }
-    
-    @DataBoundSetter
-    public void setCiBuildDuration(String ciBuildDuration) { this.ciBuildDuration = ciBuildDuration; }
 
     public String getVcHostType() { return vcHostType; }
     
