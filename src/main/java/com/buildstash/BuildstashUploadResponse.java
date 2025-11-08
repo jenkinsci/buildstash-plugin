@@ -3,12 +3,16 @@ package com.buildstash;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
+
 /**
  * Data model for Buildstash upload response.
  * Represents the response from the Buildstash API after a successful upload.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class BuildstashUploadResponse {
+public class BuildstashUploadResponse implements Serializable {
+    
+    private static final long serialVersionUID = 1L;
 
     private String message;
     

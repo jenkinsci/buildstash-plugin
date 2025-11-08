@@ -11,14 +11,16 @@ import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * Execution class for the Buildstash step.
  * Handles the actual upload process to the Buildstash service.
  */
-public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution<Void> implements Serializable {
+public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution<Map<String, Object>> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -30,7 +32,7 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
     }
 
     @Override
-    protected Void run() throws Exception {
+    protected Map<String, Object> run() throws Exception {
         TaskListener listener = getContext().get(TaskListener.class);
         FilePath workspace = getContext().get(FilePath.class);
         Run<?, ?> run = getContext().get(Run.class);
@@ -103,7 +105,14 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         listener.getLogger().println("Download URL: " + response.getDownloadUrl());
         listener.getLogger().println("Pending Processing: " + response.isPendingProcessing());
 
-        return null;
+        // Return response as Map so it can be used in pipeline scripts without whitelisting
+        Map<String, Object> result = new HashMap<>();
+        result.put("buildId", response.getBuildId());
+        result.put("buildInfoUrl", response.getBuildInfoUrl());
+        result.put("downloadUrl", response.getDownloadUrl());
+        result.put("pendingProcessing", response.isPendingProcessing());
+        result.put("message", response.getMessage());
+        return result;
     }
 
     private void validateParameters(String apiKey, String primaryFilePath, String versionComponent1Major,

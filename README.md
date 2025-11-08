@@ -312,14 +312,17 @@ Example usage of outputs:
 
 ```groovy
 def result = buildstash(
-    apiKey: 'your-api-key',
+    apiKey: env.BUILDSTASH_API_KEY,
     // ... other parameters
 )
 
 echo "Build ID: ${result.buildId}"
 echo "Build Info URL: ${result.buildInfoUrl}"
 echo "Download URL: ${result.downloadUrl}"
+echo "Pending Processing: ${result.pendingProcessing}"
 ```
+
+**Note:** The result is returned as a Map, so you can also access values using bracket notation: `result['buildId']` or `result.buildId` (both work in Groovy).
 
 ## Supported Platforms
 
