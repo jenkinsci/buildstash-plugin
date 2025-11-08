@@ -1,0 +1,69 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Example Freestyle project with Buildstash upload</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@4.11.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>https://github.com/user/my-app.git</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/main</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="empty-list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <!-- Example build steps -->
+    <hudson.tasks.Shell>
+      <command>echo "Building application..."
+mkdir -p build
+touch build/app.ipa</command>
+    </hudson.tasks.Shell>
+    
+    <!-- Buildstash upload step -->
+    <com.buildstash.BuildstashBuilder plugin="buildstash@1.0.0">
+      <apiKey>your-api-key-here</apiKey>
+      <structure>file</structure>
+      <primaryFilePath>build/app.ipa</primaryFilePath>
+      <expansionFilePath></expansionFilePath>
+      <versionComponent1Major>1</versionComponent1Major>
+      <versionComponent2Minor>0</versionComponent2Minor>
+      <versionComponent3Patch>0</versionComponent3Patch>
+      <versionComponentExtra>beta</versionComponentExtra>
+      <versionComponentMeta>build.${BUILD_NUMBER}</versionComponentMeta>
+      <customBuildNumber>${BUILD_NUMBER}</customBuildNumber>
+      <labels>jenkins,automated,to-review</labels>
+      <architectures>arm64v8,armv9</architectures>
+      <ciPipeline>Jenkins Freestyle</ciPipeline>
+      <ciRunId>${BUILD_NUMBER}</ciRunId>
+      <ciRunUrl>${BUILD_URL}</ciRunUrl>
+      <ciBuildDuration>${BUILD_DURATION}</ciBuildDuration>
+      <vcHostType>git</vcHostType>
+      <vcHost>github</vcHost>
+      <vcRepoName>my-app</vcRepoName>
+      <vcRepoUrl>https://github.com/user/my-app</vcRepoUrl>
+      <vcBranch>${GIT_BRANCH}</vcBranch>
+      <vcCommitSha>${GIT_COMMIT}</vcCommitSha>
+      <vcCommitUrl>https://github.com/user/my-app/commit/${GIT_COMMIT}</vcCommitUrl>
+      <platform>ios</platform>
+      <stream>development</stream>
+      <notes>Built with Jenkins Freestyle on ${NODE_NAME}</notes>
+    </com.buildstash.BuildstashBuilder>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project> 

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Buildstash Builder Help</title>
+</head>
+<body>
+    <h2>Buildstash Upload Builder</h2>
+    
+    <p>This build step uploads build artifacts to the Buildstash web service in Freestyle projects.</p>
+    
+    <h3>Required Parameters</h3>
+    <ul>
+        <li><strong>API Key</strong>: Your Buildstash API key for authentication</li>
+        <li><strong>Primary File Path</strong>: Path to the file you want to upload (relative to workspace)</li>
+        <li><strong>Major Version</strong>: Major version component (e.g., "1")</li>
+        <li><strong>Minor Version</strong>: Minor version component (e.g., "0")</li>
+        <li><strong>Patch Version</strong>: Patch version component (e.g., "0")</li>
+        <li><strong>Platform</strong>: Target platform (e.g., "ios", "android")</li>
+        <li><strong>Stream</strong>: Build stream (e.g., "development", "production")</li>
+    </ul>
+    
+    <h3>Optional Parameters</h3>
+    <ul>
+        <li><strong>Structure</strong>: Upload structure type ("file" or "file+expansion")</li>
+        <li><strong>Expansion File Path</strong>: Path to expansion file (required if structure is "file+expansion")</li>
+        <li><strong>Extra Version</strong>: Extra version component (e.g., "beta")</li>
+        <li><strong>Meta Version</strong>: Meta version component (e.g., "build.123")</li>
+        <li><strong>Custom Build Number</strong>: Custom build number</li>
+        <li><strong>Labels</strong>: Labels for the build (one per line)</li>
+        <li><strong>Architectures</strong>: Supported architectures (one per line)</li>
+        <li><strong>Notes</strong>: Additional notes about the build</li>
+    </ul>
+    
+    <h3>CI/CD Parameters</h3>
+    <ul>
+        <li><strong>CI Pipeline</strong>: Name of the CI pipeline (defaults to "Jenkins Freestyle")</li>
+        <li><strong>CI Run ID</strong>: CI run identifier (defaults to build number)</li>
+        <li><strong>CI Run URL</strong>: URL to the CI run (defaults to build URL)</li>
+        <li><strong>CI Build Duration</strong>: Build duration in milliseconds (defaults to actual build duration)</li>
+    </ul>
+    
+    <h3>Version Control Parameters</h3>
+    <ul>
+        <li><strong>VC Host Type</strong>: Version control host type (default: "git")</li>
+        <li><strong>VC Host</strong>: Version control host (default: "github")</li>
+        <li><strong>VC Repo Name</strong>: Repository name</li>
+        <li><strong>VC Repo URL</strong>: Repository URL</li>
+        <li><strong>VC Branch</strong>: Branch name</li>
+        <li><strong>VC Commit SHA</strong>: Commit SHA</li>
+        <li><strong>VC Commit URL</strong>: Commit URL</li>
+    </ul>
+    
+    <h3>Dynamic Values with Environment Variables</h3>
+    <p>All fields support dynamic values using environment variables. Use <code>${VAR_NAME}</code> syntax in any field to reference environment variables set in previous build steps.</p>
+    <p><strong>Example:</strong></p>
+    <ul>
+        <li>In a shell script step: <code>export PLATFORM=ios</code></li>
+        <li>In the Platform field: <code>${PLATFORM}</code></li>
+        <li>Result: The field will use "ios" at runtime</li>
+    </ul>
+    <p>This works for all fields including file paths, version components, platform, stream, labels, architectures, and SCM fields.</p>
+    
+    <h3>Usage in Freestyle Projects</h3>
+    <ol>
+        <li>Create a new Freestyle project in Jenkins</li>
+        <li>Configure your build steps (compile, test, etc.)</li>
+        <li>Optionally set environment variables in shell script steps</li>
+        <li>Add a new build step and select "Upload to Buildstash"</li>
+        <li>Configure the required parameters (use <code>${VAR_NAME}</code> for dynamic values)</li>
+        <li>Save and run the build</li>
+    </ol>
+    
+    <h3>Build Results</h3>
+    <p>After a successful upload, you can view the upload results on the build page. The build action will show:</p>
+    <ul>
+        <li>Build ID</li>
+        <li>Build Info URL</li>
+        <li>Download URL</li>
+        <li>Processing status</li>
+    </ul>
+    
+    <p>For more information, visit the <a href="https://docs.buildstash.com">Buildstash Documentation</a>.</p>
+</body>
+</html> 

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?jelly escape-by-default='true'?>
+<div>
+    <p>
+        Allows uploading build artifacts to Buildstash, for management and organization of binaries, sharing with your team and collaborators, and deployment. This plugin provides both Pipeline and Freestyle project support.
+    </p>
+    <p>
+        <strong>Pipeline Usage:</strong><br/>
+        <code>buildstash apiKey: 'your-api-key', primaryFilePath: 'path/to/file', ...</code>
+    </p>
+    <p>
+        <strong>Freestyle Usage:</strong><br/>
+        Add "Upload to Buildstash" build step in your project configuration.
+    </p>
+    <p>
+        <strong>Dynamic Values:</strong><br/>
+        All fields support environment variable expansion. In Freestyle projects, use <code>${VAR_NAME}</code> syntax. In Pipeline scripts, use Groovy variables like <code>env.PLATFORM</code> or string expansion <code>'${PLATFORM}'</code>.
+    </p>
+</div> 
