@@ -49,31 +49,31 @@
         <f:textarea />
     </f:entry>
     
-    <f:entry title="VC Host Type" field="vcHostType">
+    <f:entry title="SCM Host Type" field="vcHostType">
         <f:textbox default="git" />
     </f:entry>
     
-    <f:entry title="VC Host" field="vcHost">
+    <f:entry title="SCM Host" field="vcHost">
         <f:textbox default="github" />
     </f:entry>
     
-    <f:entry title="VC Repo Name" field="vcRepoName">
+    <f:entry title="SCM Repo Name" field="vcRepoName">
         <f:textbox />
     </f:entry>
     
-    <f:entry title="VC Repo URL" field="vcRepoUrl">
+    <f:entry title="SCM Repo URL" field="vcRepoUrl">
         <f:textbox />
     </f:entry>
     
-    <f:entry title="VC Branch" field="vcBranch">
+    <f:entry title="SCM Branch" field="vcBranch">
         <f:textbox />
     </f:entry>
     
-    <f:entry title="VC Commit SHA" field="vcCommitSha">
+    <f:entry title="SCM Commit SHA" field="vcCommitSha">
         <f:textbox />
     </f:entry>
     
-    <f:entry title="VC Commit URL" field="vcCommitUrl">
+    <f:entry title="SCM Commit URL" field="vcCommitUrl">
         <f:textbox />
     </f:entry>
     

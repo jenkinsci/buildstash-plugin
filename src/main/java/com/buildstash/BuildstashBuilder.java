@@ -150,7 +150,7 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
         request.setCiBuildDuration(formatBuildDuration(getBuildDuration(build)));
         request.setSource("jenkins");
 
-        // Set version control information
+        // Set version control information (manual values first)
         request.setVcHostType(vcHostType);
         request.setVcHost(vcHost);
         request.setVcRepoName(vcRepoName);
@@ -158,6 +158,9 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
         request.setVcBranch(vcBranch);
         request.setVcCommitSha(vcCommitSha);
         request.setVcCommitUrl(vcCommitUrl);
+
+        // Auto-detect and populate any missing VC fields from Jenkins
+        VersionControlDetector.populateVersionControlInfo(build, request);
 
         // Set workspace for file operations
         request.setWorkspace(workspace);

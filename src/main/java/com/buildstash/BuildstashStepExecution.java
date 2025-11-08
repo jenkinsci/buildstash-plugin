@@ -129,7 +129,7 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         request.setCiBuildDuration(formatBuildDuration(getBuildDuration(run)));
         request.setSource("jenkins");
 
-        // Set version control information
+        // Set version control information (manual values first)
         request.setVcHostType(step.getVcHostType());
         request.setVcHost(step.getVcHost());
         request.setVcRepoName(step.getVcRepoName());
@@ -137,6 +137,9 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         request.setVcBranch(step.getVcBranch());
         request.setVcCommitSha(step.getVcCommitSha());
         request.setVcCommitUrl(step.getVcCommitUrl());
+
+        // Auto-detect and populate any missing VC fields from Jenkins
+        VersionControlDetector.populateVersionControlInfo(run, request);
 
         // Set workspace for file operations
         request.setWorkspace(workspace);
