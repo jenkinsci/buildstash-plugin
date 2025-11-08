@@ -8,11 +8,11 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Publisher;
+import jenkins.tasks.SimpleBuildStep;
 import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
-import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -21,7 +21,7 @@ import java.util.List;
  * Post-build action for uploading build artifacts to Buildstash.
  * This allows the Buildstash upload functionality to be used as a post-build action in classic Jenkins projects.
  */
-public class BuildstashBuilder extends Publisher {
+public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
 
     private String apiKey;
     private String structure = "file";
@@ -55,7 +55,8 @@ public class BuildstashBuilder extends Publisher {
         // Default constructor required for Jenkins
     }
 
-    public boolean perform(@Nonnull Run<?, ?> build, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws InterruptedException, IOException {
+    @Override
+    public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
         try {
             // Validate required parameters
             validateParameters();
@@ -79,11 +80,10 @@ public class BuildstashBuilder extends Publisher {
             // Store results as build actions for later access
             build.addAction(new BuildstashBuildAction(response));
 
-            return true;
         } catch (Exception e) {
             listener.error("Buildstash upload failed: " + e.getMessage());
             e.printStackTrace(listener.getLogger());
-            return false;
+            throw new RuntimeException("Buildstash upload failed", e);
         }
     }
 

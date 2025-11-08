@@ -3,22 +3,15 @@ package com.buildstash;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hudson.FilePath;
 import hudson.model.TaskListener;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -37,13 +30,22 @@ public class BuildstashUploadService {
     private final String apiKey;
     private final TaskListener listener;
     private final ObjectMapper objectMapper;
-    private final CloseableHttpClient httpClient;
+    private final HttpClient httpClient;
 
     public BuildstashUploadService(String apiKey, TaskListener listener) {
+        // Enable manual Content-Length header
+        // Note: Host header is automatically set by HTTP client from URI and cannot be set manually
+        // The system property must be set before HttpClient is created
+        String existingHeaders = System.getProperty("jdk.httpclient.allowRestrictedHeaders");
+        if (existingHeaders == null || !existingHeaders.contains("Content-Length")) {
+            System.setProperty("jdk.httpclient.allowRestrictedHeaders", 
+                existingHeaders == null ? "Content-Length" : existingHeaders + ",Content-Length");
+        }
+
         this.apiKey = apiKey;
         this.listener = listener;
         this.objectMapper = new ObjectMapper();
-        this.httpClient = HttpClients.createDefault();
+        this.httpClient = HttpClient.newHttpClient();
     }
 
     public BuildstashUploadResponse upload(BuildstashUploadRequest request) throws Exception {
@@ -55,7 +57,7 @@ public class BuildstashUploadService {
         listener.getLogger().println("Uploading files to Buildstash...");
         List<MultipartChunk> primaryFileParts = null;
         List<MultipartChunk> expansionFileParts = null;
-
+        
         // Upload primary file
         if (uploadRequestResponse.getPrimaryFile().isChunkedUpload()) {
             listener.getLogger().println("Uploading primary file using chunked upload...");
@@ -99,24 +101,24 @@ public class BuildstashUploadService {
     }
 
     private UploadRequestResponse requestUploadUrls(BuildstashUploadRequest request) throws Exception {
-        HttpPost httpPost = new HttpPost(UPLOAD_REQUEST_ENDPOINT);
-        httpPost.setHeader("Authorization", "Bearer " + apiKey);
-        httpPost.setHeader("Content-Type", "application/json");
-
         // Build request payload
         Map<String, Object> payload = request.toMap();
         String jsonPayload = objectMapper.writeValueAsString(payload);
-        httpPost.setEntity(new StringEntity(jsonPayload, ContentType.APPLICATION_JSON));
 
-        try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            
-            if (response.getStatusLine().getStatusCode() != 200) {
-                throw new RuntimeException("Failed to request upload URLs: " + response.getStatusLine().getStatusCode() + " - " + responseBody);
-            }
+        HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(UPLOAD_REQUEST_ENDPOINT))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(BodyPublishers.ofString(jsonPayload))
+                .build();
 
-            return objectMapper.readValue(responseBody, UploadRequestResponse.class);
+        HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+        
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Failed to request upload URLs: " + response.statusCode() + " - " + response.body());
         }
+
+        return objectMapper.readValue(response.body(), UploadRequestResponse.class);
     }
 
     private List<MultipartChunk> uploadChunkedFile(FilePath filePath, String pendingUploadId, FileUploadInfo fileInfo, boolean isExpansion) throws Exception {
@@ -146,10 +148,6 @@ public class BuildstashUploadService {
     }
 
     private PresignedUrlResponse requestPresignedUrl(String endpoint, String pendingUploadId, int partNumber, long contentLength) throws Exception {
-        HttpPost httpPost = new HttpPost(endpoint);
-        httpPost.setHeader("Authorization", "Bearer " + apiKey);
-        httpPost.setHeader("Content-Type", "application/json");
-
         Map<String, Object> payload = Map.of(
             "pending_upload_id", pendingUploadId,
             "part_number", partNumber,
@@ -157,24 +155,24 @@ public class BuildstashUploadService {
         );
 
         String jsonPayload = objectMapper.writeValueAsString(payload);
-        httpPost.setEntity(new StringEntity(jsonPayload, ContentType.APPLICATION_JSON));
 
-        try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            
-            if (response.getStatusLine().getStatusCode() != 200) {
-                throw new RuntimeException("Failed to get presigned URL: " + response.getStatusLine().getStatusCode() + " - " + responseBody);
-            }
+        HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(BodyPublishers.ofString(jsonPayload))
+                .build();
 
-            return objectMapper.readValue(responseBody, PresignedUrlResponse.class);
+        HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+        
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Failed to get presigned URL: " + response.statusCode() + " - " + response.body());
         }
+
+        return objectMapper.readValue(response.body(), PresignedUrlResponse.class);
     }
 
     private void uploadChunk(FilePath filePath, String presignedUrl, long start, long end, long contentLength) throws Exception {
-        HttpPut httpPut = new HttpPut(presignedUrl);
-        httpPut.setHeader("Content-Type", "application/octet-stream");
-        httpPut.setHeader("Content-Length", String.valueOf(contentLength));
-
         // Create input stream for the chunk
         try (InputStream inputStream = filePath.read()) {
             // Skip to start position
@@ -183,65 +181,136 @@ public class BuildstashUploadService {
                 throw new IOException("Failed to skip to position " + start + ", only skipped " + skipped + " bytes");
             }
             
-            // Create entity with limited input stream
-            HttpEntity entity = new org.apache.http.entity.InputStreamEntity(inputStream, contentLength, ContentType.APPLICATION_OCTET_STREAM);
-            httpPut.setEntity(entity);
-
-            try (CloseableHttpResponse response = httpClient.execute(httpPut)) {
-                if (response.getStatusLine().getStatusCode() != 200) {
-                    String responseBody = EntityUtils.toString(response.getEntity());
-                    throw new RuntimeException("Failed to upload chunk: " + response.getStatusLine().getStatusCode() + " - " + responseBody);
+            // Create a limited input stream for the chunk
+            InputStream limitedInputStream = new java.io.FilterInputStream(inputStream) {
+                private long remaining = contentLength;
+                
+                @Override
+                public int read() throws IOException {
+                    if (remaining <= 0) return -1;
+                    int result = super.read();
+                    if (result != -1) remaining--;
+                    return result;
                 }
+                
+                @Override
+                public int read(byte[] b, int off, int len) throws IOException {
+                    if (remaining <= 0) return -1;
+                    int toRead = (int) Math.min(len, remaining);
+                    int result = super.read(b, off, toRead);
+                    if (result > 0) remaining -= result;
+                    return result;
+                }
+            };
+
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(presignedUrl))
+                    .header("Content-Type", "application/octet-stream")
+                    .header("Content-Length", String.valueOf(contentLength))
+                    .PUT(BodyPublishers.ofInputStream(() -> limitedInputStream))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+            
+            if (response.statusCode() != 200) {
+                throw new RuntimeException("Failed to upload chunk: " + response.statusCode() + " - " + response.body());
             }
         }
     }
 
     private void uploadDirectFile(FilePath filePath, PresignedData presignedData) throws Exception {
-        HttpPut httpPut = new HttpPut(presignedData.getUrl());
+        String url = presignedData.getUrl();
         
-        // Set headers from presigned data
-        for (Map.Entry<String, String> header : presignedData.getHeaders().entrySet()) {
-            httpPut.setHeader(header.getKey(), header.getValue());
+        if (url == null || url.trim().isEmpty()) {
+            throw new RuntimeException("Presigned URL is null or empty");
+        }
+        
+        // Get headers from presigned data
+        // The signature includes: host, content-disposition, x-amz-acl
+        // Note: Host header is automatically set by HTTP client from URI (cannot be set manually)
+        // This matches the working GitHub Actions implementation which doesn't set Host
+        String contentType = presignedData.getHeaderAsString("Content-Type");
+        String contentDisposition = presignedData.getHeaderAsString("Content-Disposition");
+        String xAmzAcl = presignedData.getHeaderAsString("x-amz-acl");
+        String contentLengthStr = presignedData.getHeaderAsString("Content-Length");
+
+        // Verify file size matches Content-Length from presigned data
+        long fileSize = filePath.length();
+        if (contentLengthStr != null) {
+            long expectedContentLength = Long.parseLong(contentLengthStr);
+            if (fileSize != expectedContentLength) {
+                throw new RuntimeException(
+                    String.format("File size mismatch: expected %d bytes, but file is %d bytes", 
+                        expectedContentLength, fileSize)
+                );
+            }
         }
 
-        // Create entity with file content
+        // Read file into byte array to ensure exact Content-Length matching
+        // This is critical for AWS signature validation - the body must match exactly
+        byte[] fileBytes;
         try (InputStream inputStream = filePath.read()) {
-            HttpEntity entity = new org.apache.http.entity.InputStreamEntity(inputStream, ContentType.APPLICATION_OCTET_STREAM);
-            httpPut.setEntity(entity);
-
-            try (CloseableHttpResponse response = httpClient.execute(httpPut)) {
-                if (response.getStatusLine().getStatusCode() != 200) {
-                    String responseBody = EntityUtils.toString(response.getEntity());
-                    throw new RuntimeException("Failed to upload file: " + response.getStatusLine().getStatusCode() + " - " + responseBody);
-                }
+            fileBytes = inputStream.readAllBytes();
+            if (fileBytes.length != fileSize) {
+                throw new RuntimeException(
+                    String.format("File read mismatch: expected %d bytes, but read %d bytes", 
+                        fileSize, fileBytes.length)
+                );
             }
+        }
+
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(url));
+
+        // Set headers exactly as in the working GitHub Actions implementation
+        // Order matches: Content-Type, Content-Length, Content-Disposition, x-amz-acl
+        // Note: Host header is automatically set by HTTP client from URI (cannot be set manually)
+        if (contentType != null) {
+            requestBuilder.header("Content-Type", contentType);
+        }
+        if (contentLengthStr != null) {
+            requestBuilder.header("Content-Length", contentLengthStr);
+        }
+        if (contentDisposition != null) {
+            requestBuilder.header("Content-Disposition", contentDisposition);
+        }
+        if (xAmzAcl != null) {
+            requestBuilder.header("x-amz-acl", xAmzAcl);
+        }
+
+        requestBuilder.PUT(HttpRequest.BodyPublishers.ofByteArray(fileBytes));
+
+        HttpRequest httpRequest = requestBuilder.build();
+        HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Failed to upload file: " + response.statusCode() + " - " + response.body());
         }
     }
 
     private BuildstashUploadResponse verifyUpload(String pendingUploadId, List<MultipartChunk> primaryFileParts, List<MultipartChunk> expansionFileParts) throws Exception {
-        HttpPost httpPost = new HttpPost(UPLOAD_VERIFY_ENDPOINT);
-        httpPost.setHeader("Authorization", "Bearer " + apiKey);
-        httpPost.setHeader("Content-Type", "application/json");
-
         // Build verify payload
         Map<String, Object> payload = Map.of("pending_upload_id", pendingUploadId);
         String jsonPayload = objectMapper.writeValueAsString(payload);
-        httpPost.setEntity(new StringEntity(jsonPayload, ContentType.APPLICATION_JSON));
 
-        try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            
-            if (response.getStatusLine().getStatusCode() != 200) {
-                throw new RuntimeException("Failed to verify upload: " + response.getStatusLine().getStatusCode() + " - " + responseBody);
-            }
+        HttpRequest httpRequest = HttpRequest.newBuilder()
+                .uri(URI.create(UPLOAD_VERIFY_ENDPOINT))
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .POST(BodyPublishers.ofString(jsonPayload))
+                .build();
 
-            return objectMapper.readValue(responseBody, BuildstashUploadResponse.class);
+        HttpResponse<String> response = httpClient.send(httpRequest, BodyHandlers.ofString());
+        
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Failed to verify upload: " + response.statusCode() + " - " + response.body());
         }
+
+        return objectMapper.readValue(response.body(), BuildstashUploadResponse.class);
     }
 
     public void close() throws IOException {
-        if (httpClient != null) {
-            httpClient.close();
-        }
+        // HttpClient doesn't need to be closed as it's managed by the JVM
+        // This method is kept for compatibility but does nothing
     }
 } 

@@ -15,6 +15,7 @@ public class BuildstashPlugin extends Plugin {
      */
     @Initializer(after = InitMilestone.PLUGINS_STARTED)
     public static void init() {
-        // Plugin initialization logic can be added here if needed
+        // Enable manual Content-Length headers for JDK 12+
+        System.setProperty("jdk.httpclient.allowRestrictedHeaders", "Content-Length");
     }
 } 

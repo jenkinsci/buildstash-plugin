@@ -1,20 +1,34 @@
 package com.buildstash;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * Data model for Buildstash upload response.
  * Represents the response from the Buildstash API after a successful upload.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class BuildstashUploadResponse {
 
+    private String message;
+    
+    @JsonProperty("build_id")
     private String buildId;
+    
+    @JsonProperty("pending_processing")
     private boolean pendingProcessing;
+    
+    @JsonProperty("build_info_url")
     private String buildInfoUrl;
+    
+    @JsonProperty("download_url")
     private String downloadUrl;
 
     // Default constructor for JSON deserialization
     public BuildstashUploadResponse() {}
 
-    public BuildstashUploadResponse(String buildId, boolean pendingProcessing, String buildInfoUrl, String downloadUrl) {
+    public BuildstashUploadResponse(String message, String buildId, boolean pendingProcessing, String buildInfoUrl, String downloadUrl) {
+        this.message = message;
         this.buildId = buildId;
         this.pendingProcessing = pendingProcessing;
         this.buildInfoUrl = buildInfoUrl;
@@ -22,6 +36,9 @@ public class BuildstashUploadResponse {
     }
 
     // Getters and Setters
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+
     public String getBuildId() { return buildId; }
     public void setBuildId(String buildId) { this.buildId = buildId; }
 
