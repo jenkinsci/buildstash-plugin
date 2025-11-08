@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Execution class for the Buildstash step.
@@ -110,14 +111,20 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         request.setStream(step.getStream());
         request.setNotes(step.getNotes());
 
-        // Parse labels and architectures
+        // Parse labels and architectures (comma-separated or newline-separated)
         if (step.getLabels() != null && !step.getLabels().trim().isEmpty()) {
-            List<String> labels = Arrays.asList(step.getLabels().split("\\r?\\n"));
+            List<String> labels = Arrays.stream(step.getLabels().split("[,\\r\\n]+"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
             request.setLabels(labels);
         }
 
         if (step.getArchitectures() != null && !step.getArchitectures().trim().isEmpty()) {
-            List<String> architectures = Arrays.asList(step.getArchitectures().split("\\r?\\n"));
+            List<String> architectures = Arrays.stream(step.getArchitectures().split("[,\\r\\n]+"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
             request.setArchitectures(architectures);
         }
 

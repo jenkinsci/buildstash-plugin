@@ -9,83 +9,135 @@
         <f:select />
     </f:entry>
     
-    <f:entry title="Primary File Path" field="primaryFilePath">
+    <f:entry title="Primary File Path" field="primaryFilePath" description="Relative path to the primary build file for upload">
+        <f:textbox placeholder="path/to/example.apk" />
+    </f:entry>
+    
+    <f:entry title="Expansion File Path" field="expansionFilePath" description="Optional path to expansion file, for example an Android .obb">
+        <f:textbox id="expansionFilePath" />
+    </f:entry>
+    
+    <f:entry title="Platform" field="platform" description="Platform identifier must match exactly">
         <f:textbox />
     </f:entry>
     
-    <f:entry title="Expansion File Path" field="expansionFilePath">
+    <f:entry title="Stream" field="stream" description="Build stream to upload to. Must exactly match stream name">
         <f:textbox />
     </f:entry>
     
-    <f:entry title="Major Version" field="versionComponent1Major">
-        <f:textbox />
+    <script>
+        (function() {
+            function initExpansionFieldToggle() {
+                var structureField = document.querySelector('select[name="structure"]');
+                var expansionInput = document.querySelector('input[name="expansionFilePath"]');
+                
+                if (!structureField || !expansionInput) {
+                    // Retry after a short delay if elements aren't ready yet
+                    setTimeout(initExpansionFieldToggle, 100);
+                    return;
+                }
+                
+                var expansionEntry = expansionInput.closest('tr');
+                if (!expansionEntry) {
+                    expansionEntry = expansionInput.closest('.form-group') || expansionInput.parentElement;
+                }
+                
+                function toggleExpansionField() {
+                    var structureValue = structureField.value;
+                    if (structureValue === 'file+expansion') {
+                        if (expansionEntry) expansionEntry.style.display = '';
+                    } else {
+                        if (expansionEntry) expansionEntry.style.display = 'none';
+                    }
+                }
+                
+                // Initial state
+                toggleExpansionField();
+                
+                // Update on change
+                structureField.addEventListener('change', toggleExpansionField);
+            }
+            
+            // Initialize when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initExpansionFieldToggle);
+            } else {
+                initExpansionFieldToggle();
+            }
+        })();
+    </script>
+    
+    <f:entry title="Major Version" field="versionComponent1Major" description="Input each semantic version component independently for validation">
+        <f:number min="0" max="9999" />
     </f:entry>
     
     <f:entry title="Minor Version" field="versionComponent2Minor">
-        <f:textbox />
+        <f:number min="0" max="9999" />
     </f:entry>
     
     <f:entry title="Patch Version" field="versionComponent3Patch">
-        <f:textbox />
+        <f:number min="0" max="9999" />
     </f:entry>
     
-    <f:entry title="Extra Version" field="versionComponentExtra">
-        <f:textbox />
+    <f:entry title="Extra Version" field="versionComponentExtra" description="Optional semantic version extra component">
+        <f:textbox placeholder="alpha" />
     </f:entry>
     
-    <f:entry title="Meta Version" field="versionComponentMeta">
-        <f:textbox />
+    <f:entry title="Meta Version" field="versionComponentMeta" description="Optional semantic version extra component">
+        <f:textbox placeholder="2025.12.01" />
     </f:entry>
     
-    <f:entry title="Custom Build Number" field="customBuildNumber">
-        <f:textbox />
+    <f:entry title="Custom Build Number" field="customBuildNumber" description="Optional build number in your preferred custom format">
+        <f:textbox placeholder="12345" />
     </f:entry>
     
-    <f:entry title="Labels" field="labels">
+    <f:entry title="Labels" field="labels" description="Comma-seperated list of labels to attach. Label names must match exactly. Example: to-review,signed">
         <f:textarea />
     </f:entry>
     
-    <f:entry title="Architectures" field="architectures">
+    <f:entry title="Architectures" field="architectures" description="Comma-seperated list of architectures supported by build. Identifiers must exactly match docs. Example: armv8,arm64v8,armv9">
         <f:textarea />
     </f:entry>
     
-    <f:entry title="SCM Host Type" field="vcHostType">
-        <f:textbox default="git" />
-    </f:entry>
-    
-    <f:entry title="SCM Host" field="vcHost">
-        <f:textbox default="github" />
-    </f:entry>
-    
-    <f:entry title="SCM Repo Name" field="vcRepoName">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="SCM Repo URL" field="vcRepoUrl">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="SCM Branch" field="vcBranch">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="SCM Commit SHA" field="vcCommitSha">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="SCM Commit URL" field="vcCommitUrl">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="Platform" field="platform">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="Stream" field="stream">
-        <f:textbox />
-    </f:entry>
-    
-    <f:entry title="Notes" field="notes">
-        <f:textarea />
-    </f:entry>
+    <f:section title="Advanced">
+        <f:advanced>
+            <f:block>
+                <div style="margin: 10px 0; padding: 10px; border-left: 3px solid #4a90e2; border-radius: 3px; background-color: rgba(74, 144, 226, 0.1);">
+                    <strong>Note:</strong> In most cases the plugin will automatically detect and send SCM fields, but you can manually set these if needed.
+                </div>
+            </f:block>
+            
+            <f:entry title="SCM Host Type" field="vcHostType">
+                <f:textbox default="git" />
+            </f:entry>
+            
+            <f:entry title="SCM Host" field="vcHost">
+                <f:textbox default="github" />
+            </f:entry>
+            
+            <f:entry title="SCM Repo Name" field="vcRepoName">
+                <f:textbox />
+            </f:entry>
+            
+            <f:entry title="SCM Repo URL" field="vcRepoUrl">
+                <f:textbox />
+            </f:entry>
+            
+            <f:entry title="SCM Branch" field="vcBranch">
+                <f:textbox />
+            </f:entry>
+            
+            <f:entry title="SCM Commit SHA" field="vcCommitSha">
+                <f:textbox />
+            </f:entry>
+            
+            <f:entry title="SCM Commit URL" field="vcCommitUrl">
+                <f:textbox />
+            </f:entry>
+            
+            <f:entry title="Notes" field="notes" description="Optional notes to attach to this build">
+                <f:textarea />
+            </f:entry>
+        </f:advanced>
+    </f:section>
 </j:jelly> 

@@ -17,6 +17,7 @@ import org.kohsuke.stapler.DataBoundSetter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Post-build action for uploading build artifacts to Buildstash.
@@ -131,14 +132,20 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
         request.setStream(stream);
         request.setNotes(notes);
 
-        // Parse labels and architectures
+        // Parse labels and architectures (comma-separated or newline-separated)
         if (labels != null && !labels.trim().isEmpty()) {
-            List<String> labelsList = Arrays.asList(labels.split("\\r?\\n"));
+            List<String> labelsList = Arrays.stream(labels.split("[,\\r\\n]+"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
             request.setLabels(labelsList);
         }
 
         if (architectures != null && !architectures.trim().isEmpty()) {
-            List<String> architecturesList = Arrays.asList(architectures.split("\\r?\\n"));
+            List<String> architecturesList = Arrays.stream(architectures.split("[,\\r\\n]+"))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
             request.setArchitectures(architecturesList);
         }
 
