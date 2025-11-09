@@ -21,7 +21,7 @@ import java.util.Map;
  */
 public class BuildstashUploadService {
 
-    private static final String API_BASE_URL = "http://app.buildstash.com/api/v1";
+    private static final String API_BASE_URL = "https://app.buildstash.com/api/v1";
     private static final String UPLOAD_REQUEST_ENDPOINT = API_BASE_URL + "/upload/request";
     private static final String UPLOAD_VERIFY_ENDPOINT = API_BASE_URL + "/upload/verify";
     private static final String MULTIPART_REQUEST_ENDPOINT = API_BASE_URL + "/upload/request/multipart";
