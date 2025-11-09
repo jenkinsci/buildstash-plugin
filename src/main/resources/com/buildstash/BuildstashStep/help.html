@@ -26,18 +26,19 @@
         <li><strong>Extra Version</strong>: Extra version component (e.g., "beta")</li>
         <li><strong>Meta Version</strong>: Meta version component (e.g., "build.123")</li>
         <li><strong>Custom Build Number</strong>: Custom build number</li>
-        <li><strong>Labels</strong>: Labels for the build (one per line)</li>
-        <li><strong>Architectures</strong>: Supported architectures (one per line)</li>
+        <li><strong>Labels</strong>: Labels for the build (comma-seperated)</li>
+        <li><strong>Architectures</strong>: Supported architectures (comma-seperated)</li>
         <li><strong>Notes</strong>: Additional notes about the build</li>
     </ul>
     
     <h3>CI/CD Parameters</h3>
     <ul>
-        <li><strong>CI Pipeline</strong>: Name of the CI pipeline</li>
-        <li><strong>CI Run ID</strong>: CI run identifier</li>
-        <li><strong>CI Run URL</strong>: URL to the CI run</li>
-        <li><strong>CI Build Duration</strong>: Build duration in milliseconds</li>
+        <li><strong>CI Pipeline</strong>: Name of the CI pipeline (automatically set to the project/job name)</li>
+        <li><strong>CI Run ID</strong>: CI run identifier (automatically set to build number)</li>
+        <li><strong>CI Run URL</strong>: URL to the CI run (automatically set to build URL)</li>
+        <li><strong>CI Build Duration</strong>: Build duration (automatically set to actual build duration in HH:mm:ss format)</li>
     </ul>
+    <p><strong>Note:</strong> CI/CD parameters are automatically populated from Jenkins context and cannot be manually set in pipeline steps.</p>
     
     <h3>Version Control Parameters</h3>
     <ul>

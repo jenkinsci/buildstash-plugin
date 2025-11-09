@@ -249,10 +249,6 @@ pipeline {
 | `customBuildNumber` | Custom build number             | `null` | `'2023.12.01'`                                   |
 | `labels` | Labels (comma-separated)        | `null` | `'jenkins,to-review'`                            |
 | `architectures` | Architectures (comma-separated) | `null` | `'arm64v8,armv9'`                                |
-| `ciPipeline` | CI pipeline name                | `null` | `'Jenkins Pipeline'`                             |
-| `ciRunId` | CI run ID                       | `null` | `env.BUILD_NUMBER`                               |
-| `ciRunUrl` | CI run URL                      | `null` | `env.BUILD_URL`                                  |
-| `ciBuildDuration` | CI build duration               | `null` | `currentBuild.duration.toString()`               |
 | `vcHostType` | Version control host type       | `'git'` | `'git'`                                          |
 | `vcHost` | Version control host            | `'github'` | `'github'`, `'gitlab'`                           |
 | `vcRepoName` | Repository name                 | `null` | `'my-app'`                                       |
