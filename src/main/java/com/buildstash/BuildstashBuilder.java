@@ -4,11 +4,10 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.tasks.BuildStepDescriptor;
-import hudson.tasks.Publisher;
+import hudson.tasks.Recorder;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
@@ -25,7 +24,7 @@ import java.util.stream.Collectors;
  * Post-build action for uploading build artifacts to Buildstash.
  * This allows the Buildstash upload functionality to be used as a post-build action in classic Jenkins projects.
  */
-public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
+public class BuildstashBuilder extends Recorder implements SimpleBuildStep {
 
     private Secret apiKey;
     private String structure = "file";
@@ -419,7 +418,8 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
     public void setNotes(String notes) { this.notes = notes; }
 
     @Extension
-    public static class DescriptorImpl extends BuildStepDescriptor<Publisher> {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static class DescriptorImpl extends BuildStepDescriptor {
 
         @Override
         public String getDisplayName() {
@@ -427,7 +427,9 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
         }
 
         @Override
-        public boolean isApplicable(Class<? extends AbstractProject> aClass) {
+        @SuppressWarnings("rawtypes")
+        public boolean isApplicable(Class aClass) {
+            // works with any kind of project
             return true;
         }
 
