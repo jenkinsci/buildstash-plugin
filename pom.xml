@@ -16,7 +16,7 @@
     <url>https://github.com/jenkinsci/buildstash-plugin</url>
 
     <properties>
-        <jenkins.version>2.479</jenkins.version>
+        <jenkins.version>2.479.3</jenkins.version>
         <java.level>17</java.level>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -28,14 +28,6 @@
             <url>https://opensource.org/licenses/MIT</url>
         </license>
     </licenses>
-
-    <developers>
-        <developer>
-            <id>buildstash</id>
-            <name>Buildstash Team</name>
-            <email>support@buildstash.com</email>
-        </developer>
-    </developers>
 
     <scm>
         <connection>scm:git:git://github.com/jenkinsci/buildstash-plugin.git</connection>

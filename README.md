@@ -1,49 +1,22 @@
-# Buildstash Jenkins Plugin
+# Buildstash
 
-A Jenkins plugin for uploading build artifacts to the [Buildstash](https://buildstash.com) web service. This plugin provides a pipeline step that can be used in Jenkins pipelines to upload files to Buildstash, supporting both direct file uploads and chunked uploads for large files.
+A Jenkins plugin for uploading build artifacts to [Buildstash](https://buildstash.com) - for management and organization of binaries, sharing with your team and collaborators, and deployment. This plugin provides both Freestyle and Pipeline steps that can be used in Jenkins projects to upload files to Buildstash, supporting both direct file uploads and chunked uploads for large files.
 
 ## Features
 
 - **Pipeline Step**: Easy-to-use pipeline step for uploading build artifacts
 - **Freestyle Support**: Build step for classic Jenkins Freestyle projects
-- **Chunked Uploads**: Support for large file uploads using chunked multipart uploads
-- **Direct Uploads**: Simple direct file uploads for smaller files
-- **File + Expansion**: Support for uploading primary files with expansion files
-- **Version Control Integration**: Automatic integration with Git repositories
-- **CI/CD Metadata**: Comprehensive build metadata collection
-- **Multiple Platforms**: Support for various platforms (iOS, Android, etc.)
+- **Chunked Uploads**: Support for large file uploads using multipart uploads
+- **Pipeline and SCM Metadata**: Automatically stores associated CI/CD and SCM context with the build
+- **Multiple Platforms**: Support for a wide array of platforms (Windows, macOS, Linux, iOS, Android, game consoles, and many others)
+- **Binary Organization and Distribution**: Once uploaded to Buildstash you have powerful controls over organizing your binaries, sharing with collaborators and testers, and distributing to users
 
 ## Installation
 
 ### Prerequisites
 
-- Jenkins 2.387.3 or later
-- Java 11 or later
-
-### Manual Installation
-
-1. Build the plugin:
-   ```bash
-   mvn clean package
-   ```
-
-2. Install the generated `.hpi` file in Jenkins:
-   - Go to **Manage Jenkins** > **Manage Plugins** > **Advanced**
-   - Upload the `.hpi` file in the **Upload Plugin** section
-   - Restart Jenkins
-
-### Development Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/jenkinsci/buildstash-plugin.git
-   cd buildstash-plugin
-   ```
-
-2. Run Jenkins with the plugin:
-   ```bash
-   mvn hpi:run
-   ```
+- Jenkins 2.479 or later
+- Java 17 or later
 
 ## Usage
 
@@ -61,15 +34,14 @@ All fields support dynamic values using environment variables. This allows you t
 - Or use string expansion: `platform: '${PLATFORM}'`
 - Example: `platform: "${env.BUILD_TYPE}"` or `platform: env.BUILD_TYPE`
 
-All fields support this feature, including:
+All fields support this, including:
 - File paths: `primaryFilePath: '${WORKSPACE}/build/app.ipa'`
 - Version components: `versionComponent1Major: '${MAJOR_VERSION}'`
-- Platform, Stream, Labels, Architectures
-- SCM fields, Notes, Custom Build Number
+- Platform, stream, labels, architectures, etc
 
 ### Setting Up Credentials
 
-Before using the plugin, you need to store your Buildstash API key as a Jenkins credential:
+Before using the plugin, you should store your Buildstash API key as a Jenkins credential:
 
 1. Go to **Manage Jenkins** → **Manage Credentials**
 2. Select the domain (usually "Global")
@@ -81,6 +53,8 @@ Before using the plugin, you need to store your Buildstash API key as a Jenkins 
    - **Description**: "Buildstash API Key"
 6. Click **OK**
 
+Bear in mind pipeline API keys are application specific, so you may wish to include the name of your application in the credential ID to differentiate.
+
 ### Pipeline Step
 
 The plugin provides a `buildstash` step that can be used in Jenkins pipelines:
@@ -91,9 +65,8 @@ pipeline {
     
     environment {
         // Other environment variables
-        PLATFORM = 'ios'
-        STREAM = 'development'
-        BUILD_VERSION = '1.0.0'
+        PLATFORM = 'android'
+        STREAM = 'stable'
     }
     
     stages {
@@ -112,14 +85,14 @@ pipeline {
                     buildstash(
                         apiKey: env.BUILDSTASH_API_KEY,  // Using credential (automatically masked in logs)
                         structure: 'file',
-                        primaryFilePath: 'build/app.ipa',
+                        primaryFilePath: 'build/app.apk',
                         versionComponent1Major: '1',
                         versionComponent2Minor: '0',
                         versionComponent3Patch: '0',
                         platform: env.PLATFORM,  // Using environment variable
                         stream: env.STREAM,        // Using environment variable
-                        labels: 'beta\ntest',
-                        architectures: 'arm64\nx86_64'
+                        labels: 'automated,signed,to-review',
+                        architectures: 'arm64v8,armv9'
                     )
                 }
             }
@@ -134,33 +107,25 @@ The plugin also provides a build step for classic Jenkins Freestyle projects:
 
 1. **Create a Freestyle Project**: Go to Jenkins and create a new Freestyle project
 2. **Add Build Steps**: Configure your build steps (compile, test, etc.)
-3. **Set Environment Variables** (optional): In a shell script step, set variables:
+3. **Set Environment Variables** (optional): If you'd like to pass values into the Buildstash step dynamically, you can do this via environment variables:
    ```bash
    export PLATFORM=ios
    export STREAM=development
    export BUILD_PATH=build/app.ipa
    ```
-4. **Add Buildstash Step**: Add a new build step and select "Upload to Buildstash"
+4. **Add Buildstash Step**: In your post-build actions, add "Upload to Buildstash"
 5. **Configure Parameters**: Fill in the required parameters:
    - API Key
    - Primary File Path (can use `${BUILD_PATH}` to reference environment variable)
-   - Version components (Major, Minor, Patch)
-   - Platform (can use `${PLATFORM}` to reference environment variable)
-   - Stream (can use `${STREAM}` to reference environment variable)
+   - Semantic version components (Major, Minor, Patch)
+   - Platform (i.e. could use `${PLATFORM}` to reference environment variable)
+   - Stream
 6. **Save and Run**: Save the project configuration and run the build
 
 **Using Environment Variables in Freestyle:**
 - Use `${VAR_NAME}` syntax in any form field
 - Variables are expanded at runtime from the build environment
 - Example: Set Platform field to `${PLATFORM}` where `PLATFORM` was set in a previous build step
-
-**Using Credentials in Freestyle:**
-1. Install the **Credentials Binding Plugin** if not already installed
-2. Add build step: **Inject environment variables to the build process**
-3. In "Credentials" section, bind your credential (e.g., `buildstash-api-key`) to an environment variable (e.g., `BUILDSTASH_API_KEY`)
-4. In the Buildstash step, set API Key field to: `${BUILDSTASH_API_KEY}`
-
-The build step will appear in the "Build" section of your Freestyle project configuration, and you can configure all the same parameters as the pipeline step.
 
 After a successful upload, the build results will be displayed on the build page with links to:
 - Build ID
