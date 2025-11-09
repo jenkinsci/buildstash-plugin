@@ -48,7 +48,7 @@ public class VersionControlDetector {
 
             // Get repository URL
             String repoUrl = getRepositoryUrl(build, scm);
-            if (repoUrl != null && !repoUrl.trim().isEmpty()) {
+            if (repoUrl != null && !repoUrl.isBlank()) {
                 // Detect host from URL
                 String detectedHost = detectHostFromUrl(repoUrl);
                 if (detectedHost != null && isEmpty(request.getVcHost())) {
@@ -80,7 +80,7 @@ public class VersionControlDetector {
             // Get commit SHA (try multiple methods) - only if not already set from environment
             if (isEmpty(request.getVcCommitSha())) {
                 String detectedCommitSha = getCommitSha(build);
-                if (detectedCommitSha != null && !detectedCommitSha.trim().isEmpty()) {
+                if (detectedCommitSha != null && !detectedCommitSha.isBlank()) {
                     request.setVcCommitSha(detectedCommitSha);
                 }
             }
@@ -107,7 +107,7 @@ public class VersionControlDetector {
      * Helper to check if a string is null or empty.
      */
     private static boolean isEmpty(String str) {
-        return str == null || str.trim().isEmpty();
+        return str == null || str.isBlank();
     }
 
     /**
@@ -133,7 +133,7 @@ public class VersionControlDetector {
                     
                     // Try GIT_URL
                     String gitUrl = (String) getMethod.invoke(env, "GIT_URL");
-                    if (gitUrl != null && !gitUrl.trim().isEmpty() && isEmpty(request.getVcRepoUrl())) {
+                    if (gitUrl != null && !gitUrl.isBlank() && isEmpty(request.getVcRepoUrl())) {
                         request.setVcRepoUrl(gitUrl);
                         if (isEmpty(request.getVcHost())) {
                             String host = detectHostFromUrl(gitUrl);
@@ -151,7 +151,7 @@ public class VersionControlDetector {
 
                     // Try GIT_BRANCH
                     String gitBranch = (String) getMethod.invoke(env, "GIT_BRANCH");
-                    if (gitBranch != null && !gitBranch.trim().isEmpty() && isEmpty(request.getVcBranch())) {
+                    if (gitBranch != null && !gitBranch.isBlank() && isEmpty(request.getVcBranch())) {
                         // Clean up branch name: remove origin/, refs/heads/, */ prefixes
                         String cleanedBranch = gitBranch
                             .replaceAll("^origin/", "")
@@ -163,14 +163,14 @@ public class VersionControlDetector {
 
                     // Try GIT_COMMIT
                     String gitCommit = (String) getMethod.invoke(env, "GIT_COMMIT");
-                    if (gitCommit != null && !gitCommit.trim().isEmpty() && isEmpty(request.getVcCommitSha())) {
+                    if (gitCommit != null && !gitCommit.isBlank() && isEmpty(request.getVcCommitSha())) {
                         request.setVcCommitSha(gitCommit);
                     }
 
                     // Also try GIT_COMMIT_SHORT if GIT_COMMIT wasn't available
                     if (isEmpty(request.getVcCommitSha())) {
                         String gitCommitShort = (String) getMethod.invoke(env, "GIT_COMMIT_SHORT");
-                        if (gitCommitShort != null && !gitCommitShort.trim().isEmpty()) {
+                        if (gitCommitShort != null && !gitCommitShort.isBlank()) {
                             // Try to get full commit from BuildData if available
                             String fullCommit = getFullCommitFromShort(build, gitCommitShort);
                             request.setVcCommitSha(fullCommit != null ? fullCommit : gitCommitShort);
@@ -208,15 +208,15 @@ public class VersionControlDetector {
                         }
                         
                         // Use changelist as commit SHA (Perforce uses changelists instead of commits)
-                        if (p4Changelist != null && !p4Changelist.trim().isEmpty() && isEmpty(request.getVcCommitSha())) {
+                        if (p4Changelist != null && !p4Changelist.isBlank() && isEmpty(request.getVcCommitSha())) {
                             request.setVcCommitSha(p4Changelist);
                         }
                         
                         // Use depot path as repo URL
-                        if (p4DepotPath != null && !p4DepotPath.trim().isEmpty() && isEmpty(request.getVcRepoUrl())) {
+                        if (p4DepotPath != null && !p4DepotPath.isBlank() && isEmpty(request.getVcRepoUrl())) {
                             // Construct Perforce URL from port and depot path
                             String p4Url = p4DepotPath;
-                            if (p4Port != null && !p4Port.trim().isEmpty()) {
+                            if (p4Port != null && !p4Port.isBlank()) {
                                 // Format: perforce://server:port/depot/path
                                 p4Url = p4Port + "/" + p4DepotPath;
                             }
@@ -235,9 +235,9 @@ public class VersionControlDetector {
                         if (isEmpty(request.getVcBranch())) {
                             // Try P4_STREAM if available
                             String p4Stream = (String) getMethod.invoke(env, "P4_STREAM");
-                            if (p4Stream != null && !p4Stream.trim().isEmpty()) {
+                            if (p4Stream != null && !p4Stream.isBlank()) {
                                 request.setVcBranch(p4Stream);
-                            } else if (p4DepotPath != null && !p4DepotPath.trim().isEmpty()) {
+                            } else if (p4DepotPath != null && !p4DepotPath.isBlank()) {
                                 // Use depot path as branch-like identifier
                                 request.setVcBranch(p4DepotPath);
                             }
@@ -302,7 +302,7 @@ public class VersionControlDetector {
                             try {
                                 java.lang.reflect.Method getUrl = config.getClass().getMethod("getUrl");
                                 String url = (String) getUrl.invoke(config);
-                                if (url != null && !url.trim().isEmpty()) {
+                                if (url != null && !url.isBlank()) {
                                     return url;
                                 }
                             } catch (Exception e) {
@@ -348,7 +348,7 @@ public class VersionControlDetector {
      * Detects the VC host (github, gitlab, etc.) from a repository URL.
      */
     private static String detectHostFromUrl(String url) {
-        if (url == null || url.trim().isEmpty()) {
+        if (url == null || url.isBlank()) {
             return null;
         }
 
@@ -427,7 +427,7 @@ public class VersionControlDetector {
      * - Bitbucket Server: https://bitbucket.example.com/projects/PROJECT/repos/repo.git -> repo
      */
     private static String extractRepoNameFromUrl(String url) {
-        if (url == null || url.trim().isEmpty()) {
+        if (url == null || url.isBlank()) {
             return null;
         }
 
@@ -527,10 +527,10 @@ public class VersionControlDetector {
                             java.lang.reflect.Method getBranch = revision.getClass().getMethod("getBranch");
                             Object branch = getBranch.invoke(revision);
                             if (branch != null) {
-                                try {
-                                    java.lang.reflect.Method getName = branch.getClass().getMethod("getName");
-                                    String branchName = (String) getName.invoke(branch);
-                                    if (branchName != null && !branchName.trim().isEmpty()) {
+                                    try {
+                                        java.lang.reflect.Method getName = branch.getClass().getMethod("getName");
+                                        String branchName = (String) getName.invoke(branch);
+                                        if (branchName != null && !branchName.isBlank()) {
                                         // Clean up branch name: remove refs/heads/, origin/, */ prefixes
                                         return branchName
                                             .replaceAll("^refs/heads/", "")
@@ -559,7 +559,7 @@ public class VersionControlDetector {
                         if (!map.isEmpty()) {
                             // Get the first branch name
                             String branchName = (String) map.keySet().iterator().next();
-                            if (branchName != null && !branchName.trim().isEmpty()) {
+                            if (branchName != null && !branchName.isBlank()) {
                                 // Clean up branch name: remove refs/heads/, origin/, */ prefixes
                                 return branchName
                                     .replaceAll("^refs/heads/", "")
@@ -591,7 +591,7 @@ public class VersionControlDetector {
                             try {
                                 java.lang.reflect.Method getName = branchSpec.getClass().getMethod("getName");
                                 String branchName = (String) getName.invoke(branchSpec);
-                                if (branchName != null && !branchName.trim().isEmpty()) {
+                                if (branchName != null && !branchName.isBlank()) {
                                     // Clean up branch name: remove refs/heads/, origin/, */ prefixes
                                     return branchName
                                         .replaceAll("^refs/heads/", "")
@@ -602,7 +602,7 @@ public class VersionControlDetector {
                             } catch (Exception e) {
                                 // Try toString() as fallback
                                 String branchStr = branchSpec.toString();
-                                if (branchStr != null && !branchStr.trim().isEmpty()) {
+                                if (branchStr != null && !branchStr.isBlank()) {
                                     return branchStr
                                         .replaceAll("^refs/heads/", "")
                                         .replaceAll("^origin/", "")
@@ -643,7 +643,7 @@ public class VersionControlDetector {
                         try {
                             java.lang.reflect.Method getSha1String = revision.getClass().getMethod("getSha1String");
                             String sha = (String) getSha1String.invoke(revision);
-                            if (sha != null && !sha.trim().isEmpty()) {
+                            if (sha != null && !sha.isBlank()) {
                                 return sha;
                             }
                         } catch (Exception e) {
@@ -653,7 +653,7 @@ public class VersionControlDetector {
                                 Object sha1Obj = getSha1.invoke(revision);
                                 if (sha1Obj != null) {
                                     String sha = sha1Obj.toString();
-                                    if (sha != null && !sha.trim().isEmpty()) {
+                                    if (sha != null && !sha.isBlank()) {
                                         return sha;
                                     }
                                 }
@@ -662,7 +662,7 @@ public class VersionControlDetector {
                                 try {
                                     java.lang.reflect.Method getName = revision.getClass().getMethod("getName");
                                     String sha = (String) getName.invoke(revision);
-                                    if (sha != null && !sha.trim().isEmpty()) {
+                                    if (sha != null && !sha.isBlank()) {
                                         return sha;
                                     }
                                 } catch (Exception e3) {
@@ -688,13 +688,13 @@ public class VersionControlDetector {
                                 try {
                                     java.lang.reflect.Method getSha1String = revisionObj.getClass().getMethod("getSha1String");
                                     String sha = (String) getSha1String.invoke(revisionObj);
-                                    if (sha != null && !sha.trim().isEmpty()) {
+                                    if (sha != null && !sha.isBlank()) {
                                         return sha;
                                     }
                                 } catch (Exception e) {
                                     // Try toString()
                                     String sha = revisionObj.toString();
-                                    if (sha != null && !sha.trim().isEmpty() && sha.length() >= 7) {
+                                    if (sha != null && !sha.isBlank() && sha.length() >= 7) {
                                         return sha;
                                     }
                                 }
@@ -717,7 +717,7 @@ public class VersionControlDetector {
                 ChangeLogSet.Entry entry = changeSet.iterator().next();
                 if (entry != null) {
                     String commitId = entry.getCommitId();
-                    if (commitId != null && !commitId.trim().isEmpty()) {
+                    if (commitId != null && !commitId.isBlank()) {
                         return commitId;
                     }
                 }
@@ -738,7 +738,7 @@ public class VersionControlDetector {
                             try {
                                 java.lang.reflect.Method getSha1String = revision.getClass().getMethod("getSha1String");
                                 String sha = (String) getSha1String.invoke(revision);
-                                if (sha != null && !sha.trim().isEmpty()) {
+                                if (sha != null && !sha.isBlank()) {
                                     return sha;
                                 }
                             } catch (Exception e) {
@@ -798,7 +798,7 @@ public class VersionControlDetector {
      * - //depot/project -> project
      */
     private static String extractPerforceRepoName(String depotPath) {
-        if (depotPath == null || depotPath.trim().isEmpty()) {
+        if (depotPath == null || depotPath.isBlank()) {
             return null;
         }
         

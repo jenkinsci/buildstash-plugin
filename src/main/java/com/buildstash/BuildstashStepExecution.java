@@ -118,31 +118,31 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
     private void validateParameters(String apiKey, String primaryFilePath, String versionComponent1Major,
                                     String versionComponent2Minor, String versionComponent3Patch,
                                     String platform, String stream) throws Exception {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
+        if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalArgumentException("API key is required");
         }
 
-        if (primaryFilePath == null || primaryFilePath.trim().isEmpty()) {
+        if (primaryFilePath == null || primaryFilePath.isBlank()) {
             throw new IllegalArgumentException("Primary file path is required");
         }
 
-        if (versionComponent1Major == null || versionComponent1Major.trim().isEmpty()) {
+        if (versionComponent1Major == null || versionComponent1Major.isBlank()) {
             throw new IllegalArgumentException("Major version component is required");
         }
 
-        if (versionComponent2Minor == null || versionComponent2Minor.trim().isEmpty()) {
+        if (versionComponent2Minor == null || versionComponent2Minor.isBlank()) {
             throw new IllegalArgumentException("Minor version component is required");
         }
 
-        if (versionComponent3Patch == null || versionComponent3Patch.trim().isEmpty()) {
+        if (versionComponent3Patch == null || versionComponent3Patch.isBlank()) {
             throw new IllegalArgumentException("Patch version component is required");
         }
 
-        if (platform == null || platform.trim().isEmpty()) {
+        if (platform == null || platform.isBlank()) {
             throw new IllegalArgumentException("Platform is required");
         }
 
-        if (stream == null || stream.trim().isEmpty()) {
+        if (stream == null || stream.isBlank()) {
             throw new IllegalArgumentException("Stream is required");
         }
     }
@@ -184,7 +184,7 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         request.setNotes(notes);
 
         // Parse labels and architectures (comma-separated or newline-separated)
-        if (labels != null && !labels.trim().isEmpty()) {
+        if (labels != null && !labels.isBlank()) {
             List<String> labelsList = Arrays.stream(labels.split("[,\\r\\n]+"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
@@ -192,7 +192,7 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
             request.setLabels(labelsList);
         }
 
-        if (architectures != null && !architectures.trim().isEmpty()) {
+        if (architectures != null && !architectures.isBlank()) {
             List<String> architecturesList = Arrays.stream(architectures.split("[,\\r\\n]+"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())

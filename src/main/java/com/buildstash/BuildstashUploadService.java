@@ -242,7 +242,7 @@ public class BuildstashUploadService {
     private void uploadDirectFile(FilePath filePath, PresignedData presignedData) throws Exception {
         String url = presignedData.getUrl();
         
-        if (url == null || url.trim().isEmpty()) {
+        if (url == null || url.isBlank()) {
             throw new RuntimeException("Presigned URL is null or empty");
         }
         
