@@ -59,7 +59,20 @@ public class BuildstashStep extends Step implements Serializable {
     // Getters and Setters
     public Secret getApiKey() { return apiKey; }
     
+    /**
+     * Setter that accepts String and converts to Secret.
+     * This is the primary setter used by Jenkins pipeline scripts and forms.
+     */
     @DataBoundSetter
+    public void setApiKey(String apiKey) {
+        this.apiKey = Secret.fromString(apiKey);
+    }
+    
+    /**
+     * Setter that accepts Secret directly (for programmatic use).
+     * Note: This is NOT annotated with @DataBoundSetter to avoid DescribableModel
+     * trying to coerce String to Secret. Pipeline scripts will use the String overload.
+     */
     public void setApiKey(Secret apiKey) { this.apiKey = apiKey; }
 
     public String getStructure() { return structure; }
