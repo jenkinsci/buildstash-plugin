@@ -36,11 +36,7 @@ public class BuildstashUploadService {
         // Enable manual Content-Length header
         // Note: Host header is automatically set by HTTP client from URI and cannot be set manually
         // The system property must be set before HttpClient is created
-        String existingHeaders = System.getProperty("jdk.httpclient.allowRestrictedHeaders");
-        if (existingHeaders == null || !existingHeaders.contains("Content-Length")) {
-            System.setProperty("jdk.httpclient.allowRestrictedHeaders", 
-                existingHeaders == null ? "Content-Length" : existingHeaders + ",Content-Length");
-        }
+
 
         this.apiKey = apiKey;
         this.listener = listener;
@@ -227,7 +223,6 @@ public class BuildstashUploadService {
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(presignedUrl))
                     .header("Content-Type", "application/octet-stream")
-                    .header("Content-Length", String.valueOf(contentLength))
                     .PUT(BodyPublishers.ofInputStream(() -> limitedInputStream))
                     .build();
 
@@ -248,24 +243,12 @@ public class BuildstashUploadService {
         
         // Get headers from presigned data
         // The signature includes: host, content-disposition, x-amz-acl
-        // Note: Host header is automatically set by HTTP client from URI (cannot be set manually)
-        // This matches the working GitHub Actions implementation which doesn't set Host
         String contentType = presignedData.getHeaderAsString("Content-Type");
         String contentDisposition = presignedData.getHeaderAsString("Content-Disposition");
         String xAmzAcl = presignedData.getHeaderAsString("x-amz-acl");
-        String contentLengthStr = presignedData.getHeaderAsString("Content-Length");
 
         // Verify file size matches Content-Length from presigned data
         long fileSize = filePath.length();
-        if (contentLengthStr != null) {
-            long expectedContentLength = Long.parseLong(contentLengthStr);
-            if (fileSize != expectedContentLength) {
-                throw new RuntimeException(
-                    String.format("File size mismatch: expected %d bytes, but file is %d bytes", 
-                        expectedContentLength, fileSize)
-                );
-            }
-        }
 
         // Read file into byte array to ensure exact Content-Length matching
         // This is critical for AWS signature validation - the body must match exactly
@@ -274,7 +257,7 @@ public class BuildstashUploadService {
             fileBytes = inputStream.readAllBytes();
             if (fileBytes.length != fileSize) {
                 throw new RuntimeException(
-                    String.format("File read mismatch: expected %d bytes, but read %d bytes", 
+                    String.format("File read mismatch: expected %d bytes, but read %d bytes",
                         fileSize, fileBytes.length)
                 );
             }
@@ -283,15 +266,11 @@ public class BuildstashUploadService {
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(url));
 
-        // Set headers exactly as in the working GitHub Actions implementation
-        // Order matches: Content-Type, Content-Length, Content-Disposition, x-amz-acl
-        // Note: Host header is automatically set by HTTP client from URI (cannot be set manually)
+        // Ensure headers are set as S3 API expects
         if (contentType != null) {
             requestBuilder.header("Content-Type", contentType);
         }
-        if (contentLengthStr != null) {
-            requestBuilder.header("Content-Length", contentLengthStr);
-        }
+
         if (contentDisposition != null) {
             requestBuilder.header("Content-Disposition", contentDisposition);
         }
