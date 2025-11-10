@@ -9,13 +9,15 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>buildstash</artifactId>
-    <version>1.0.0</version>
+    <version>${revision}.${changelist}</version>
     <packaging>hpi</packaging>
     <name>Buildstash</name>
     <description>Allows uploading build artifacts to Buildstash, for management and organization of binaries, sharing with your team and collaborators, and deployment.</description>
     <url>https://github.com/jenkinsci/buildstash-plugin</url>
 
     <properties>
+        <revision>1</revision>
+        <changelist>999999-SNAPSHOT</changelist>
         <jenkins.baseline>2.479</jenkins.baseline>
         <jenkins.version>${jenkins.baseline}.3</jenkins.version>
         <jenkins.pluginName>Buildstash</jenkins.pluginName>
