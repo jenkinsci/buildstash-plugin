@@ -98,7 +98,7 @@ public class BuildstashBuilder extends Publisher implements SimpleBuildStep {
                     expandedVcRepoName, expandedVcRepoUrl, expandedVcBranch, expandedVcCommitSha, expandedVcCommitUrl);
             
             // Auto-detect SCM info (from project SCM config for freestyle, or BuildData for pipelines)
-            VersionControlDetector.populateVersionControlInfo(build, request);
+            VersionControlDetector.populateVersionControlInfo(build, request, listener);
 
             // Execute upload
             BuildstashUploadResponse response = uploadService.upload(request);

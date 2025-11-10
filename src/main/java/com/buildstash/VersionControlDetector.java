@@ -1,6 +1,7 @@
 package com.buildstash;
 
 import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.scm.ChangeLogSet;
 import hudson.scm.SCM;
 import hudson.model.AbstractProject;
@@ -22,6 +23,14 @@ public class VersionControlDetector {
      * Only populates fields that are null or empty (allows manual override).
      */
     public static void populateVersionControlInfo(Run<?, ?> build, BuildstashUploadRequest request) {
+        populateVersionControlInfo(build, request, null);
+    }
+
+    /**
+     * Detects and populates version control information from a Jenkins build.
+     * Only populates fields that are null or empty (allows manual override).
+     */
+    public static void populateVersionControlInfo(Run<?, ?> build, BuildstashUploadRequest request, TaskListener listener) {
         try {
             // Get SCM from the build's parent project
             SCM scm = null;
@@ -75,7 +84,15 @@ public class VersionControlDetector {
 
             // Get commit SHA (try multiple methods)
             if (isEmpty(request.getVcCommitSha())) {
-                String detectedCommitSha = getCommitSha(build);
+                // For SVN, try SCM-specific methods first
+                String detectedCommitSha = null;
+                if (detectedHostType != null && detectedHostType.equals("svn")) {
+                    detectedCommitSha = getSvnRevision(build, scm, listener);
+                }
+                // Fall back to generic method if SVN-specific didn't work
+                if (detectedCommitSha == null || detectedCommitSha.isBlank()) {
+                    detectedCommitSha = getCommitSha(build);
+                }
                 if (detectedCommitSha != null && !detectedCommitSha.isBlank()) {
                     request.setVcCommitSha(detectedCommitSha);
                 }
@@ -99,6 +116,7 @@ public class VersionControlDetector {
             // This allows the build to continue even if VC info can't be detected
         }
     }
+
 
     /**
      * Helper to check if a string is null or empty.
@@ -307,19 +325,20 @@ public class VersionControlDetector {
      * Detects the SCM host type (git, svn, hg, etc.) from the SCM object.
      */
     private static String detectHostType(SCM scm) {
-        String scmClass = scm.getClass().getName().toLowerCase();
+        String scmClass = scm.getClass().getName();
+        String scmClassLower = scmClass.toLowerCase();
         
-        if (scmClass.contains("git")) {
+        if (scmClassLower.contains("git")) {
             return "git";
-        } else if (scmClass.contains("svn") || scmClass.contains("subversion")) {
+        } else if (scmClassLower.contains("svn") || scmClassLower.contains("subversion")) {
             return "svn";
-        } else if (scmClass.contains("mercurial") || scmClass.contains("hg")) {
+        } else if (scmClassLower.contains("mercurial") || scmClassLower.contains("hg")) {
             return "hg";
-        } else if (scmClass.contains("bazaar") || scmClass.contains("bzr")) {
+        } else if (scmClassLower.contains("bazaar") || scmClassLower.contains("bzr")) {
             return "bzr";
-        } else if (scmClass.contains("perforce")) {
+        } else if (scmClassLower.contains("perforce")) {
             return "perforce";
-        } else if (scmClass.contains("cvs")) {
+        } else if (scmClassLower.contains("cvs")) {
             return "cvs";
         }
         
@@ -400,10 +419,27 @@ public class VersionControlDetector {
                     try {
                         java.lang.reflect.Method getLocations = scm.getClass().getMethod("getLocations");
                         Object locations = getLocations.invoke(scm);
-                        if (locations instanceof Collection) {
-                            Collection<?> collection = (Collection<?>) locations;
-                            if (!collection.isEmpty()) {
-                                Object location = collection.iterator().next();
+                        
+                        // Handle both arrays and collections
+                        Object[] locationArray = null;
+                        if (locations != null) {
+                            if (locations instanceof Collection) {
+                                Collection<?> collection = (Collection<?>) locations;
+                                if (!collection.isEmpty()) {
+                                    locationArray = collection.toArray();
+                                }
+                            } else if (locations.getClass().isArray()) {
+                                int length = java.lang.reflect.Array.getLength(locations);
+                                locationArray = new Object[length];
+                                for (int i = 0; i < length; i++) {
+                                    locationArray[i] = java.lang.reflect.Array.get(locations, i);
+                                }
+                            }
+                        }
+                        
+                        if (locationArray != null && locationArray.length > 0) {
+                            Object location = locationArray[0];
+                            if (location != null) {
                                 // Try getRemote() or getURL() method
                                 try {
                                     java.lang.reflect.Method getRemote = location.getClass().getMethod("getRemote");
@@ -477,7 +513,7 @@ public class VersionControlDetector {
                 }
             }
         } catch (Exception e) {
-            // Ignore - Git plugin might not be available
+            // Ignore
         }
 
         return null;
@@ -508,9 +544,9 @@ public class VersionControlDetector {
         if (lowerUrl.contains("bitbucket.org")) {
             return "bitbucket";
         }
-        if (lowerUrl.contains("bitbucket")) {
-            // Could be Bitbucket Server (self-hosted) - still use "bitbucket" as host type
-            return "bitbucket";
+        // Azure Repos
+        if (lowerUrl.contains("azure.com") || lowerUrl.contains("visualstudio.com") || lowerUrl.contains("dev.azure.com")) {
+            return "azure-repos";
         }
         // Gitea
         if (lowerUrl.contains("gitea")) {
@@ -529,7 +565,7 @@ public class VersionControlDetector {
             return "codeberg";
         }
         // SourceForge
-        if (lowerUrl.contains("sourceforge")) {
+        if (lowerUrl.contains("sourceforge.com")) {
             return "sourceforge";
         }
         // Sourcehut
@@ -540,10 +576,6 @@ public class VersionControlDetector {
         if (lowerUrl.contains("codecommit")) {
             return "aws-codecommit";
         }
-        // Azure Repos
-        if (lowerUrl.contains("azure.com") || lowerUrl.contains("visualstudio.com") || lowerUrl.contains("dev.azure.com")) {
-            return "azure-repos";
-        }
         // Perforce
         if (lowerUrl.contains("perforce")) {
             return "perforce";
@@ -551,6 +583,10 @@ public class VersionControlDetector {
         // Gitee
         if (lowerUrl.contains("gitee")) {
             return "gitee";
+        }
+        // RiouxSVN (custom SVN host)
+        if (lowerUrl.contains("svn.riouxsvn.com") || lowerUrl.contains("riouxsvn")) {
+            return "riouxsvn";
         }
 
         return null;
@@ -763,6 +799,67 @@ public class VersionControlDetector {
     }
 
     /**
+     * Gets the SVN revision from the build using SVN-specific methods.
+     */
+    private static String getSvnRevision(Run<?, ?> build, SCM scm, TaskListener listener) {
+        // Method 1: Try to get from environment variables
+        try {
+            hudson.EnvVars env = build.getEnvironment(listener);
+            String[] envVars = {"SVN_REVISION", "SVN_REV", "SVN_REVISION_NUMBER", "SVN_VERSION"};
+            for (String envVar : envVars) {
+                String value = env.get(envVar);
+                if (value != null && !value.isBlank()) {
+                    return value;
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        
+        // Method 2: Try to get from SCM object directly
+        try {
+            // Try methods that might return revision
+            String[] methodNames = {"getRevision", "getRevisionNumber", "getLastRevision", "getCurrentRevision"};
+            for (String methodName : methodNames) {
+                try {
+                    java.lang.reflect.Method method = scm.getClass().getMethod(methodName);
+                    Object result = method.invoke(scm);
+                    if (result != null) {
+                        String revision = result.toString();
+                        if (revision != null && !revision.isBlank()) {
+                            return revision;
+                        }
+                    }
+                } catch (NoSuchMethodException e) {
+                    // Method doesn't exist, try next
+                } catch (Exception e) {
+                    // Ignore
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        
+        // Method 3: Try to get from build's display name or description
+        try {
+            String displayName = build.getDisplayName();
+            // Display name might contain revision like "#123 r456"
+            if (displayName != null) {
+                // Try to extract revision number from display name
+                java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("r(\\d+)");
+                java.util.regex.Matcher matcher = pattern.matcher(displayName);
+                if (matcher.find()) {
+                    return matcher.group(1);
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        
+        return null;
+    }
+
+    /**
      * Gets the commit SHA from the build.
      * Tries multiple methods to get the commit SHA, which is shown as "Revision" in Jenkins UI.
      */
@@ -852,25 +949,34 @@ public class VersionControlDetector {
         try {
             java.lang.reflect.Method getChangeSetMethod = build.getClass().getMethod("getChangeSet");
             ChangeLogSet<?> changeSet = (ChangeLogSet<?>) getChangeSetMethod.invoke(build);
+            
             if (changeSet != null && !changeSet.isEmptySet()) {
-                ChangeLogSet.Entry entry = changeSet.iterator().next();
-                if (entry != null) {
-                    // For SVN, try getRevision() first
-                    try {
-                        java.lang.reflect.Method getRevision = entry.getClass().getMethod("getRevision");
-                        Object revisionObj = getRevision.invoke(entry);
-                        if (revisionObj != null) {
-                            String revision = revisionObj.toString();
-                            if (revision != null && !revision.isBlank()) {
-                                return revision;
+                for (ChangeLogSet.Entry entry : changeSet) {
+                    if (entry != null) {
+                        // For SVN, try getRevision() first
+                        try {
+                            java.lang.reflect.Method getRevision = entry.getClass().getMethod("getRevision");
+                            Object revisionObj = getRevision.invoke(entry);
+                            if (revisionObj != null) {
+                                String revision = revisionObj.toString();
+                                if (revision != null && !revision.isBlank()) {
+                                    return revision;
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Not SVN, try getCommitId() for Git
+                            try {
+                                String commitId = entry.getCommitId();
+                                if (commitId != null && !commitId.isBlank()) {
+                                    return commitId;
+                                }
+                            } catch (Exception e2) {
+                                // Ignore
                             }
                         }
-                    } catch (Exception e) {
-                        // Not SVN, try getCommitId() for Git
-                        String commitId = entry.getCommitId();
-                        if (commitId != null && !commitId.isBlank()) {
-                            return commitId;
-                        }
+                        
+                        // Only process first entry for now
+                        break;
                     }
                 }
             }
@@ -878,27 +984,90 @@ public class VersionControlDetector {
             // Ignore
         }
 
-        // Method 3: Try to get from all actions (look for BuildData in all actions)
+        // Method 3: Try to get from all actions (look for BuildData in all actions, or SVNRevisionState for SVN)
         try {
             java.util.Collection<?> actions = build.getAllActions();
             for (Object action : actions) {
-                if (action != null && action.getClass().getName().contains("BuildData")) {
-                    try {
-                        java.lang.reflect.Method getLastBuiltRevision = action.getClass().getMethod("getLastBuiltRevision");
-                        Object revision = getLastBuiltRevision.invoke(action);
-                        if (revision != null) {
+                if (action != null) {
+                    String actionClass = action.getClass().getName();
+                    
+                    // Try SVNRevisionState for SVN revision
+                    if (actionClass.equals("hudson.scm.SVNRevisionState")) {
+                        try {
+                            // Try getRevision() method - check if it takes parameters
                             try {
-                                java.lang.reflect.Method getSha1String = revision.getClass().getMethod("getSha1String");
-                                String sha = (String) getSha1String.invoke(revision);
-                                if (sha != null && !sha.isBlank()) {
-                                    return sha;
+                                java.lang.reflect.Method getRevision = null;
+                                try {
+                                    // Try no-arg version first
+                                    getRevision = action.getClass().getMethod("getRevision");
+                                } catch (NoSuchMethodException e) {
+                                    // Try with parameters - maybe it needs a module?
+                                    java.lang.reflect.Method[] methods = action.getClass().getMethods();
+                                    for (java.lang.reflect.Method m : methods) {
+                                        if (m.getName().equals("getRevision")) {
+                                            getRevision = m;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                if (getRevision != null) {
+                                    Object revisionObj = null;
+                                    if (getRevision.getParameterCount() == 0) {
+                                        revisionObj = getRevision.invoke(action);
+                                    } else {
+                                        // Try with null or empty parameters
+                                        Object[] params = new Object[getRevision.getParameterCount()];
+                                        revisionObj = getRevision.invoke(action, params);
+                                    }
+                                    if (revisionObj != null) {
+                                        String revision = revisionObj.toString();
+                                        if (revision != null && !revision.isBlank()) {
+                                            return revision;
+                                        }
+                                    }
                                 }
                             } catch (Exception e) {
                                 // Ignore
                             }
+                            
+                            // Try getRevisionNumber() method
+                            try {
+                                java.lang.reflect.Method getRevisionNumber = action.getClass().getMethod("getRevisionNumber");
+                                Object revisionObj = getRevisionNumber.invoke(action);
+                                if (revisionObj != null) {
+                                    String revision = revisionObj.toString();
+                                    if (revision != null && !revision.isBlank()) {
+                                        return revision;
+                                    }
+                                }
+                            } catch (Exception e) {
+                                // Ignore
+                            }
+                        } catch (Exception e) {
+                            // Ignore
                         }
-                    } catch (Exception e) {
-                        // Ignore
+                    }
+                    
+                    // Try BuildData for Git
+                    if (actionClass.contains("BuildData")) {
+                        try {
+                            java.lang.reflect.Method getLastBuiltRevision = action.getClass().getMethod("getLastBuiltRevision");
+                            Object revision = getLastBuiltRevision.invoke(action);
+                            if (revision != null) {
+                                try {
+                                    java.lang.reflect.Method getSha1String = revision.getClass().getMethod("getSha1String");
+                                    String sha = (String) getSha1String.invoke(revision);
+                                    if (sha != null && !sha.isBlank()) {
+                                        return sha;
+                                    }
+                                } catch (Exception e) {
+                                    // Ignore
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Ignore
+                        }
                     }
                 }
             }

@@ -99,7 +99,7 @@ public class BuildstashStepExecution extends SynchronousNonBlockingStepExecution
         
         // Auto-detect SCM info from BuildData (for pipelines)
         // This MUST be called after createUploadRequest so the request object is fully initialized
-        VersionControlDetector.populateVersionControlInfo(run, request);
+        VersionControlDetector.populateVersionControlInfo(run, request, listener);
 
         // Execute upload
         BuildstashUploadResponse response = uploadService.upload(request);
